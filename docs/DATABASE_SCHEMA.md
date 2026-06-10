@@ -1,6 +1,6 @@
 # HEYRAH — Database Schema Draft
 
-**Status:** v0.1 draft — requirements phase companion document
+**Status:** v0.2 draft — refined money types + DB-enforced integrity
 **Depends on:** `docs/REQUIREMENTS.md` (§4 product fields, §8–10 commerce rules, §11 auth)
 **Scope:** relational design for PostgreSQL. No ORM, no migrations, no application code in this document.
 
@@ -47,12 +47,12 @@
 | slug | VARCHAR(140) UNIQUE | derived, stable |
 | sku | VARCHAR(40) UNIQUE | uppercase-normalized, pattern `HEY-<CAT>-#####` |
 | description | TEXT | safe-rendered only |
-| price | DECIMAL(10,2) | required, > 0 |
+| price | NUMERIC(10,2) | required, `CHECK (price > 0)` — NUMERIC, never FLOAT8, never VARCHAR |
 | discount_type | VARCHAR(10) | CHECK in ('none','percent','fixed'); one per product |
 | discount_value | DECIMAL(10,2) | percent: 0–100 exclusive; fixed: 0 < v < price |
 | category_id | BIGINT FK → categories | required |
 | status | VARCHAR(12) | CHECK in ('active','inactive','archived') |
-| stock_quantity | INT | current on-hand |
+| stock_quantity | INT | `CHECK (stock_quantity >= 0)` — negative stock is unrepresentable at the DB level, per REQUIREMENTS §9 |
 | low_stock_threshold | INT NULL | per-product override; NULL → global default |
 | created_at / updated_at | TIMESTAMPTZ | `newest` sort uses created_at |
 
@@ -132,6 +132,17 @@ id PK, order_id FK, method VARCHAR(30), status CHECK in ('unpaid','paid','failed
 ### 2.13 stock_adjustments
 
 id PK, product_id FK, delta INT, resulting_quantity INT, reason VARCHAR(40) CHECK in ('restock','correction','damaged','sale','cancel_restore','admin_set','initial'), actor_type / actor_id, created_at. **Append-only** — inventory audit per REQUIREMENTS §9; no UPDATE/DELETE from application paths.
+
+### 2.14 DB-enforced integrity summary (v0.2)
+
+Beyond app validation, the database itself must make wrong states impossible:
+
+- `products.price > 0`, `products.stock_quantity >= 0` — CHECK constraints.
+- discount coherence: if `discount_type='percent'` then `0 < discount_value < 100`; if `'fixed'` then `0 < discount_value < price`; if `'none'` then `discount_value IS NULL` — one compound CHECK.
+- `cart_items.quantity > 0 AND quantity <= 99` — the cart hard cap enforced close to the data.
+- `order_items.unit_price >= 0`, `final_price > 0`, `quantity > 0`, `line_total >= 0`.
+- UNIQUE on: `users.email`, `categories.slug`, `products.slug`, `products.sku`, `orders.order_number`, `cart_items(cart_id, product_id)`, `product_images(product_id, position)`, `product_specifications(product_id, spec_key)`.
+- Append-only tables (`order_items`, `stock_adjustments`, `order_status_history`) protected by revoking UPDATE/DELETE from the application role at the migration level.
 
 ## 3. Relations (narrative)
 
