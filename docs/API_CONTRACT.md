@@ -1,6 +1,6 @@
 # HEYRAH — API Contract Draft
 
-**Status:** v0.1 draft — resource surface only (conventions section lands next revision)
+**Status:** v0.2 draft — resources + conventions
 **Depends on:** `docs/REQUIREMENTS.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE_SCHEMA.md`
 **No implementation exists yet.** This is the surface the API will be built to match.
 
@@ -73,3 +73,35 @@ Base: `/api/v1` — JSON over HTTPS. Auth: cookie session. Role checks are serve
 ## 5. The sorting contract (critical)
 
 `sort` accepts: `price_asc`, `price_desc`, `newest`, `name_asc`, `name_desc`. Unknown value → falls back to `newest` (documented, no error). `price_asc`/`price_desc` MUST compare the numeric column: given prices `100, 25, 1000, 250`, `price_asc` returns `25 → 100 → 250 → 1000`. Any string-collation result is a defect. Ties break on `created_at DESC, id DESC`. Sorting resolves after search+filter and before pagination — page 2 continues the same deterministic order.
+
+## 6. Conventions (added v0.2)
+
+**Error envelope** — every failure is:
+
+```json
+{ "error": { "code": "stock_shortage", "message": "…", "details": [ … ] } }
+```
+
+| code | HTTP | Meaning |
+|---|---|---|
+| `validation_failed` | 400 | schema/validation errors, field-level details |
+| `invalid_credentials` | 401 | login failure (generic, no enumeration) |
+| `access_denied` | 403 | authenticated but wrong role / ownership miss |
+| `unknown_resource` | 404 | nonexistent id/slug; also used instead of 403 for foreign user resources |
+| `stock_shortage` | 409 | checkout/cart line lost the race; `details` names lines |
+| `cart_stale` | 409 | inactive/archived/removed products in cart |
+| `rate_limited` | 429 | back off; `Retry-After` header |
+
+Production responses never carry stack traces or SQL (§12.7).
+
+**List success envelope** — `{ "items": […], "page": 1, "page_size": 12, "total_items": 0, "total_pages": 0 }`.
+
+**Money on the wire** — exact decimal **strings** (`"250.00"`, never `250.00` float), so no JSON parser can silently corrupt a price. Amounts are computed server-side; request bodies that include totals are ignored outright.
+
+## 7. Pagination, idempotency, protection
+
+- `page` ≥ 1 (default 1); `page_size` default 12 catalog / 24 admin, max 48. Beyond last page → empty `items` with honest totals, not an error.
+- `POST /checkout` is naturally idempotent: a second submit after success finds the cart already converted and replays the existing order — documented behavior, tested in §15's order tests.
+- Rate limits: auth endpoints 10/min/IP, search burst-cooled, admin unthrottled v1.
+- Cookie-auth mutations ride SameSite=strict plus a double-submit CSRF token; CORS allowlist is the web origin only.
+- Versioning: additive changes ship under `/api/v1`; anything breaking bumps `/api/v2` — old version gets a deprecation window.
