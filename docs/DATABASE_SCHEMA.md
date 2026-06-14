@@ -158,7 +158,35 @@ Beyond app validation, the database itself must make wrong states impossible:
 - order_items: (order_id). cart_items: (cart_id). stock_adjustments: (product_id, created_at).
 - Final list must be re-verified against real query plans in the performance phase.
 
-## 5. Open questions
+## 5. Entity-relationship diagram
+
+```mermaid
+erDiagram
+    USERS ||--o| CARTS : has
+    USERS ||--o{ ADDRESSES : stores
+    USERS ||--o{ ORDERS : places
+    USERS ||--o{ WISHLIST_ITEMS : saves
+    CATEGORIES ||--o{ PRODUCTS : contains
+    PRODUCTS ||--o{ PRODUCT_IMAGES : shows
+    PRODUCTS ||--o{ PRODUCT_SPECIFICATIONS : describes
+    PRODUCTS ||--o{ STOCK_ADJUSTMENTS : audited-by
+    PRODUCTS ||--o{ CART_ITEMS : in
+    CARTS ||--o{ CART_ITEMS : holds
+    ORDERS ||--|{ ORDER_ITEMS : snapshots
+    ORDERS ||--o{ ORDER_STATUS_HISTORY : transitions
+    ORDERS |o--o{ PAYMENTS : settled-by
+    WISHLIST_ITEMS }o--|| PRODUCTS : refers
+
+    USERS { bigint id; varchar email; varchar role; bool is_blocked }
+    PRODUCTS { bigint id; varchar sku; numeric price; varchar status; int stock_quantity }
+    ORDERS { bigint id; varchar order_number; varchar status; varchar payment_status; numeric grand_total }
+    ORDER_ITEMS { bigint id; varchar product_name_snapshot; numeric final_price; int quantity; numeric line_total }
+    STOCK_ADJUSTMENTS { bigint id; int delta; varchar reason; int resulting_quantity }
+```
+
+Rendering note: the mermaid block lives inside this markdown so GitHub renders it natively — the diagram stays part of the doc, not a separate binary asset.
+
+## 6. Open questions
 
 - JSONB vs relational rows for product specifications (v0.1 chose relational for queryability).
 - Session-token cart vs server-side guest cart storage — tied to stack ADR.
