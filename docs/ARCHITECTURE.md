@@ -1,6 +1,6 @@
 # HEYRAH — Architecture Document
 
-**Status:** draft — documents phase, no implementation exists yet
+**Status:** v1.0 — synchronized with final v1 decisions (cookie sessions, no gateway, manual payment confirmation)
 **Depends on:** `docs/REQUIREMENTS.md`, `docs/DATABASE_SCHEMA.md`
 
 ---
@@ -45,25 +45,28 @@ Layering, strict one direction: `routers → services → repositories/models �
 - **Authoritative backend:** every endpoint that touches price, total, stock, or role recomputes server-side. Client-supplied amounts are rejected at the schema layer (extra fields ignored/denied per §12.1).
 - **Money:** `Decimal` end-to-end — Pydantic `condecimal`, DB `NUMERIC`, rounding half-up applied once, at the display-totaling boundary. The sorting path orders on the numeric column, never a cast-to-string comparison.
 - **Stock:** deduction happens inside one transaction per order; the update is conditional (`stock_quantity >= qty`) with row locking; a failed condition rolls the whole order and writes a `stock_adjustments` audit row for the attempt.
-- **Sessions:** httpOnly + SameSite cookie session issued by the API; role claims resolved server-side per request; Next.js proxies the cookie on server-rendered routes. (JWT alternative documented in stack ADR; session chosen for revocability.)
+- **Sessions:** httpOnly + SameSite cookie sessions issued by the API — **the v1 decision; JWT is not used** (switching would require explicit approval later). Every visitor gets a session: guests unauthenticated (their temporary cart keys off it), users authenticated. Role claims resolved server-side per request; session state lives server-side for instant revocation; Next.js proxies the cookie on server-rendered routes. Session identifier rotated at login, before the guest cart merge runs.
 - **Authz dependency:** two guards — `require_user`, `require_admin` — injected at the router level, plus per-resource ownership checks inside services (object-level authz, §11.6).
 
 ## 5. Checkout flow (the critical path)
 
 ```
-POST /api/v1/checkout
-  → load cart (session or user)
+POST /api/v1/checkout                    (authenticated sessions only — guests get 401, login first)
+  → load cart (user's persistent cart; guest cart already merged at login)
   → revalidate every line (active + stock)      ── fail → per-line reasons, HTTP 409
-  → compute subtotal / discounts / shipping / total in one Decimal pass
+  → compute subtotal / discounts / shipping / total in one Decimal pass (INR)
   → BEGIN TX
       → SELECT products FOR UPDATE
       → conditional stock decrement per line     ── fail → ROLLBACK, HTTP 409
       → INSERT order + order_items snapshots + stock_adjustments('sale') rows
+      → order.payment_status = PENDING_PAYMENT   (no gateway in v1)
     COMMIT
   → return order_number, totals snapshot, status
 ```
 
-Guest carts merge into the user cart on login (server union, qty capped by stock).
+No partial orders: any line failure rolls back the entire transaction — order insert, snapshots, and every stock decrement together. Payment is never captured here; the order stays `PENDING_PAYMENT` until an admin manually confirms `PAID`.
+
+Guest carts merge into the user cart on login (server union, duplicate lines qty-summed, quantities capped by stock, unavailable products dropped — one transaction).
 
 ## 6. Search / filter / sort shape
 

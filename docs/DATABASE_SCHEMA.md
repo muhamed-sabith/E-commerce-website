@@ -1,6 +1,6 @@
 # HEYRAH — Database Schema Draft
 
-**Status:** v0.2 draft — refined money types + DB-enforced integrity
+**Status:** v0.3 draft — synchronized with final v1 decisions (INR, manual payment confirmation, guest session cart)
 **Depends on:** `docs/REQUIREMENTS.md` (§4 product fields, §8–10 commerce rules, §11 auth)
 **Scope:** relational design for PostgreSQL. No ORM, no migrations, no application code in this document.
 
@@ -9,7 +9,7 @@
 ## 1. Conventions
 
 - Snake_case names, surrogate primary keys (`BIGSERIAL`), immutable `created_at` / mutable `updated_at` timestamps on every mutable table (UTC storage).
-- Money columns use fixed-point decimal types — never floats, never strings (REQUIREMENTS §7/§10).
+- Money columns use fixed-point decimal types — never floats, never strings (REQUIREMENTS §7/§10). Single currency: **INR (₹)**; no currency column per money value — the store-wide currency is a constant, format at display.
 - Soft lifecycle via `status` columns; nothing customer-visible is hard-deleted once it appears in an order.
 - Enums are stored as `VARCHAR` + `CHECK` constraints (easy to evolve, portable across migrations).
 
@@ -77,7 +77,7 @@
 
 ### 2.6 carts / cart_items
 
-`carts`: id, user_id FK NULL (persisted user cart), session_token VARCHAR(64) NULL (guest cart), created_at, updated_at. Constraint: exactly one of user_id / session_token set. One active cart per user (UNIQUE(user_id) where not null).
+`carts`: id, user_id FK NULL (persisted user cart), session_token VARCHAR(64) NULL (guest's temporary session cart — keyed by the unauthenticated guest session), created_at, updated_at. Constraint: exactly one of user_id / session_token set. One active cart per user (UNIQUE(user_id) where not null). **On login the guest cart (session_token) merges into the user cart: lines union, duplicate products qty-summed, quantities re-capped by current stock; unavailable products dropped with a flag; the merge runs in one transaction.**
 
 `cart_items`: id, cart_id FK, product_id FK, quantity INT > 0. UNIQUE(cart_id, product_id) — adding twice sums quantity.
 
@@ -108,7 +108,7 @@ Composite PK (user_id FK, product_id FK), created_at. Idempotent add; no stock r
 | order_number | VARCHAR(20) UNIQUE | `HEY-YYMMDD-####` |
 | user_id | BIGINT FK → users | |
 | status | VARCHAR(12) | CHECK in ('pending','confirmed','shipped','delivered','cancelled') |
-| payment_status | VARCHAR(8) | CHECK in ('unpaid','paid','failed') |
+| payment_status | VARCHAR(20) | CHECK in ('PENDING_PAYMENT','PAID') — v1 has **no payment gateway**: every order starts `PENDING_PAYMENT`; an authorized admin manually flips it to `PAID` (audited in order_status_history). Customers have no path to set PAID |
 | subtotal | DECIMAL(12,2) | server-computed at purchase |
 | discount_total | DECIMAL(12,2) | Σ per-product discounts |
 | shipping_total | DECIMAL(12,2) | v1 flat/free-above rules |
@@ -125,9 +125,11 @@ id PK, order_id FK, product_id FK (may point to archived product — snapshot be
 
 id PK, order_id FK, from_status NULL→to_status, actor_type CHECK ('USER','ADMIN','SYSTEM'), actor_id NULL, note VARCHAR(255), created_at. The status ladder (§10.4) is enforced app-side; this table is its evidence trail.
 
-### 2.12 payments
+### 2.12 payments — **future-only, not part of v1**
 
-id PK, order_id FK, method VARCHAR(30), status CHECK in ('unpaid','paid','failed'), amount DECIMAL(12,2), provider_reference VARCHAR(80) NULL (sandbox in v1), created_at / updated_at.
+Reserved for the day a real gateway is approved (would hold method, gateway status, provider references, webhook evidence). **v1 builds no payments table and no gateway integration**: the order's `payment_status` column is the single source of payment truth, admin-confirmed manually. Listed here only so the v1 schema leaves clean room for it — no v1 requirement references provider references, gateway IDs, or webhooks.
+
+*(If ever built: id PK, order_id FK, method VARCHAR(30), status, amount DECIMAL(12,2), provider_reference VARCHAR(80) NULL, created_at / updated_at.)*
 
 ### 2.13 stock_adjustments
 
@@ -148,7 +150,7 @@ Beyond app validation, the database itself must make wrong states impossible:
 
 - categories 1—N products; products 1—N images/specifications.
 - users 1—N addresses/orders; users 1—1 cart, N—N wishlists.
-- orders 1—N order_items, 1—N status history, 0—1+ payments.
+- orders 1—N order_items, 1—N status history; payment state lives on the order itself in v1 (`orders.payment_status`) — no active payments relation.
 - products 1—N stock_adjustments.
 
 ## 4. Planned indexes
@@ -174,7 +176,6 @@ erDiagram
     CARTS ||--o{ CART_ITEMS : holds
     ORDERS ||--|{ ORDER_ITEMS : snapshots
     ORDERS ||--o{ ORDER_STATUS_HISTORY : transitions
-    ORDERS |o--o{ PAYMENTS : settled-by
     WISHLIST_ITEMS }o--|| PRODUCTS : refers
 
     USERS { bigint id; varchar email; varchar role; bool is_blocked }
@@ -189,5 +190,5 @@ Rendering note: the mermaid block lives inside this markdown so GitHub renders i
 ## 6. Open questions
 
 - JSONB vs relational rows for product specifications (v0.1 chose relational for queryability).
-- Session-token cart vs server-side guest cart storage — tied to stack ADR.
 - Order number generator: sequence-per-day vs random tail — decide with implementation.
+- ~~Session-token cart vs server-side guest cart storage~~ — **decided (v1): guest cart keyed by the unauthenticated session** (`carts.session_token`), per the cookie-session decision; merge-on-login rules specified above.

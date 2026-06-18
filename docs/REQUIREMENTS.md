@@ -1,8 +1,8 @@
 # HEYRAH — Requirements Specification
 
 **Project:** HEYRAH — "Wings of Style" e-commerce platform
-**Document version:** 0.1 (pre-implementation, requirements phase)
-**Status:** Draft for approval — no application code exists at this stage
+**Document version:** 0.2 (final v1 decisions locked)
+**Status:** Approved baseline — synchronized with ARCHITECTURE, DATABASE_SCHEMA, and API_CONTRACT; no application code exists yet
 **Governing rules:** `AGENTS.md` (permanent project rules)
 
 ---
@@ -28,7 +28,7 @@ HEYRAH is a production-minded e-commerce platform for a premium fashion/lifestyl
 
 | Persona | Description |
 |---|---|
-| Guest | Browses, searches, filters, views products; must sign in to use cart/checkout/wishlist/orders |
+| Guest | Browses, searches, filters, views products; may build a temporary session cart; must sign in before checkout/order creation |
 | Customer (USER) | Registered shopper with address book, orders, wishlist, profile |
 | Administrator (ADMIN) | Operates catalog, inventory, orders, users, settings — separate authorization surface |
 
@@ -52,7 +52,7 @@ Each feature is specified as: **purpose / user action / expected system behavior
 * **User action:** clicks header links, opens category menu, uses mobile hamburger.
 * **Expected behavior:** sticky or standard header with logo (never restretched), category links, search, cart icon with live item count, account link. Mobile: accessible drawer/menu, touch targets ≥ 44px, focus order sane.
 * **Success state:** every link reaches a real page; active section indicated subtly.
-* **Errors/edges:** unknown route → branded 404 page with path back to catalog; cart count when guest → 0/hidden, never stale; menu trap: drawer restores focus and closes on Escape.
+* **Errors/edges:** unknown route → branded 404 page with path back to catalog; cart count for guests reflects the temporary session cart (0 when empty), never stale; menu trap: drawer restores focus and closes on Escape.
 
 ### 2.3 Product browsing
 
@@ -123,8 +123,8 @@ Each feature is specified as: **purpose / user action / expected system behavior
 * **Purpose:** convert cart into an order safely.
 * **User action:** proceeds to checkout, selects/enters address, confirms.
 * **Expected behavior:** full flow per §10 — re-validate cart server-side, compute authoritative totals, require shipping address, create order atomically with inventory deduction.
-* **Success state:** order created with human-readable order number, status per §10, confirmation summary shown; stock correctly decremented.
-* **Errors/edges:** race — last item sold between cart-view and confirm → order rejected for that line with clear message, rest may proceed (per-line outcome, documented); payment step failure → order not confirmed, cart preserved, retry offered; empty cart → checkout unreachable.
+* **Success state:** order created with human-readable order number, status per §10, payment awaiting manual admin confirmation (`PENDING_PAYMENT`), confirmation summary shown; stock correctly decremented.
+* **Errors/edges:** race — last item sold between cart-view and confirm → order rejected for that line with clear message, rest may proceed (per-line outcome, documented); server-side validation failure → order not created, cart preserved with reasons, retry offered; empty cart → checkout unreachable; guests reaching checkout → prompted to sign in, guest cart merges on login.
 
 ### 2.12 Address management
 
@@ -154,7 +154,7 @@ Each feature is specified as: **purpose / user action / expected system behavior
 
 * **Purpose:** identify users and unlock cart/checkout/wishlist/orders.
 * **User action:** register, login, recover password (only if email infra approved — see §18).
-* **Expected behavior:** per §11 — hashed storage, rate-limited login, generic failure messages, session/cookie or token with expiry; guest cart merge on login.
+* **Expected behavior:** per §11 — hashed storage, rate-limited login, generic failure messages, secure server-side cookie sessions; guest session cart merges into the user cart on login (stock-validated).
 * **Success state:** redirect back to original destination after forced login (deep-link preserved).
 * **Errors/edges:** unverified/nonexistent email → generic message (no enumeration); expired session mid-checkout → re-login then continue intact; duplicate registration → honest "email exists" flow.
 
@@ -162,7 +162,7 @@ Each feature is specified as: **purpose / user action / expected system behavior
 
 * **Purpose:** end session cleanly.
 * **User action:** clicks logout.
-* **Expected behavior:** server invalidates session/token; client state cleared (cart cache, user info).
+* **Expected behavior:** server invalidates the session server-side; client state cleared (cart cache, user info).
 * **Success state:** landing on homepage or previous page, guest state.
 * **Errors/edges:** back-button shows no stale protected data (cache policy); logout replay → idempotent, no error.
 
@@ -218,7 +218,7 @@ All admin surfaces require authenticated **ADMIN** role, enforced on **every req
 
 ### 3.11 Settings
 
-* Store name/tagline (HEYRAH, "Wings of Style" — spelling locked), default low-stock threshold, currency + formatting, default sorting option, page size. Brand colors/logo are **not** editable from settings (brand rules in AGENTS.md are permanent).
+* Store name/tagline (HEYRAH, "Wings of Style" — spelling locked), default low-stock threshold, currency formatting (the currency itself is fixed: INR — not a setting), default sorting option, page size. Brand colors/logo are **not** editable from settings (brand rules in AGENTS.md are permanent).
 
 ### 3.12 Admin authorization matrix
 
@@ -229,7 +229,7 @@ All admin surfaces require authenticated **ADMIN** role, enforced on **every req
 | Any admin endpoint/page | ❌ | ❌ | ✅ |
 | Other users' data (any kind) | ❌ | ❌ | only via defined admin views, audited |
 
-A USER token hitting an admin endpoint receives 403 from the server, full stop — regardless of client UI.
+A USER session hitting an admin endpoint receives 403 from the server, full stop — regardless of client UI.
 
 ---
 
@@ -243,7 +243,7 @@ A USER token hitting an admin endpoint receives 403 from the server, full stop �
 | name | required, 2–120 chars, trimmed |
 | slug | derived from name, unique, stable |
 | sku | required, unique, uppercase-normalized, documented pattern (e.g. `HEY-<CAT>-<5 digits>`) |
-| price | required, numeric decimal, > 0, 2-decimal precision max |
+| price | required, numeric decimal in INR (₹), > 0, 2-decimal precision max |
 | discount | optional; percent (0 < d < 100) **or** fixed amount (0 < amount < price); one discount type per product (decision §18); backend computes final price |
 | final_price | computed server-side, never stored as a source of truth |
 | category_id | required, active category |
@@ -312,14 +312,14 @@ High → Low produces `1000, 250, 100, 25`.
 
 ## 8. Cart Requirements
 
-* **Add:** server checks product exists, active, stock ≥ requested qty; adds/merges line (same product = one line, qty summed); per-line max qty = min(stock, hard cap 99); guest cart in session, user cart persisted.
+* **Add:** server checks product exists, active, stock ≥ requested qty; adds/merges line (same product = one line, qty summed); per-line max qty = min(stock, hard cap 99). Guests get a **temporary session cart** (identified by the guest session, no login needed); logged-in users get a persistent cart; the guest cart merges into the user cart on login.
 * **Remove:** any line; totals recomputed server-side.
 * **Quantity change:** validated against stock at that moment; clamp with message, not silent truncation; qty 0 = remove.
 * **Stock validation:** on add, on every cart view, and again (authoritative) at checkout.
 * **Subtotal:** Σ(final_price × qty) computed on backend; **never** accept totals from the client.
 * **Discounts:** per-product discount reflected in final_price line; cart-level coupon engine is out of scope v1 (§18); subtotal − discount shown explicitly.
 * **Total:** subtotal (after product discounts) + shipping (v1: flat rate or free-above-threshold — decision §18). Rounding: compute in decimal, round for display half-up to 2 dp; total = Σ rounded lines so displayed parts always add to the displayed whole.
-* **Availability changes while in cart:** flagged line ("price updated"/"no longer available"), blocked from checkout, user can remove; cart merge on login: server union, qty capped by stock.
+* **Availability changes while in cart:** flagged line ("price updated"/"no longer available"), blocked from checkout, user can remove; cart merge on login: server union, duplicate lines qty-summed then capped by stock.
 
 ---
 
@@ -336,14 +336,15 @@ High → Low produces `1000, 250, 100, 25`.
 
 ## 10. Checkout and Order Requirements
 
-* **Checkout validation:** server re-runs every cart check (§8) at confirm time; authenticated user required (v1: registered users only, §18); valid shipping address required; cart non-empty and all lines valid.
+* **Checkout validation:** server re-runs every cart check (§8) at confirm time; **authentication required — checkout is the login wall** (guests are prompted to sign in first; guest cart merges on login); valid shipping address required; cart non-empty and all lines valid.
 * **Order creation:** one transaction — re-validate → compute final totals → check+deduct stock for every line → insert order + snapshot lines. On any failure: total rollback, cart state returned to the user with reasons.
 * **Authoritative backend pricing:** order lines snapshot product name, unit price, discount, final price, qty, line total at purchase time. Client-supplied money is ignored everywhere.
 * **Inventory deduction:** per §9, same transaction as the order.
 * **Order statuses:** `pending → confirmed → shipped → delivered`, with `cancelled` reachable from pending/confirmed only; transitions restricted, audited (who/when), no skipping backwards (shipped → pending rejected).
-* **Payment status (v1):** `unpaid / paid / failed` — v1 payment capture is sandbox/manual confirmation (real gateway is approval-only, §18); orders proceed per server-recorded payment status, never per client claim.
+* **Payment (v1): no payment gateway.** No Razorpay/Stripe/PayPal, no payment SDK, no webhook, no provider API in v1. Every order is created with `payment_status = PENDING_PAYMENT`. An authorized admin then manually confirms payment by setting it to `PAID` (audited, visible in order history). **Customers can never set an order to PAID** — the endpoint does not exist for them, server-enforced. The schema keeps the semantics clean so a real gateway can be approved later without surgery.
 * **Shipping information:** address snapshot stored on the order (survives later edits/deletions in the address book).
 * **Order number:** human-readable, unique, documented format (e.g. `HEY-YYMMDD-####`).
+* **Ordering channel:** orders are created directly on the HEYRAH website only. No WhatsApp ordering, no off-site ordering flows in v1.
 * **Receipt:** order confirmation page shows everything; email receipts out of scope v1 (§18).
 
 ---
@@ -364,7 +365,7 @@ High → Low produces `1000, 250, 100, 25`.
 
 **11.4 Sessions**
 
-* HttpOnly, Secure, SameSite cookie sessions **or** short-lived signed tokens (decided with stack — §18); no credentials in localStorage; absolute + idle expiry; logout invalidates server-side; sensitive operations (password/email change) re-verify the current password; session identifier rotated at login.
+* Secure **server-side cookie sessions** — HttpOnly, Secure, SameSite cookies; **no JWT in v1** (a JWT move would require explicit approval later); no credentials in localStorage; absolute + idle expiry; logout invalidates server-side; sensitive operations (password/email change) re-verify the current password; session identifier rotated at login. Guests are identified by their own session (the same session mechanism, unauthenticated), which is what makes the temporary guest cart work.
 
 **11.5 Admin bootstrap**
 
@@ -408,10 +409,10 @@ High → Low produces `1000, 250, 100, 25`.
 ## 14. Non-Functional Requirements
 
 * **Performance:** catalog/list pages interactive quickly (target: LCP < 2.5s on mid-tier 4G for first load); API list/search/sort responses P95 < 300ms excluding cold start; optimized responsive images; pagination mandatory (no unbounded queries); DB indexes on search/sort/filter columns documented with the schema.
-* **Scalability:** stateless API where possible (shared session store or stateless tokens); read-heavy design allows a caching layer later without refactoring.
+* **Scalability:** stateless API with server-side session storage; read-heavy design allows a caching layer later without refactoring.
 * **Maintainability:** per AGENTS.md code quality — layered structure, reusable validation, reusable business logic, clear naming, no duplicated commerce rules (pricing math lives in exactly one place).
 * **Accessibility:** per §13.
-* **SEO:** meaningful titles/meta per product & category, canonical URLs, semantic headings, sitemap, product structured data where the stack allows; storefront pages server-rendered or pre-rendered (decision with stack) — a JS-only blank page on crawl is a defect.
+* **SEO:** meaningful titles/meta per product & category, canonical URLs, semantic headings, sitemap, product structured data where the stack allows; storefront pages server-rendered or pre-rendered by Next.js — a JS-only blank page on crawl is a defect.
 * **Reliability:** every money/stock mutation transactional; versioned migrations; documented backup strategy before production.
 * **Observability (proportionate):** structured logs with request ids; health endpoint; error rate visible during dev/deploy; dashboards later, logs from day one.
 
@@ -422,7 +423,7 @@ High → Low produces `1000, 250, 100, 25`.
 | Area | Minimum tests |
 |---|---|
 | Authentication | register ok/dup/invalid; login ok / wrong-pass / unknown-email (identical failure message); rate-limit; logout invalidation |
-| Authorization | USER→admin endpoint = 403; USER→another user's order = 404/403; anonymous protected route = 401; ADMIN passes |
+| Authorization | USER→admin endpoint = 403; USER→another user's order = 404/403; anonymous protected route = 401; ADMIN passes; customer cannot reach any payment-status mutation (no such customer endpoint) |
 | Search | case-insensitivity, whitespace collapse, partial match, AND tokens, symbols-only input, injection attempts, no-results |
 | Filtering | single facet, multi-value OR within facet, AND across facets, price bounds applied to final price, nonsense params |
 | **Numeric sorting** | **the §7.1 example (`100,25,1000,250` → `25,100,250,1000`) as an explicit test case**, both directions, deterministic ties |
@@ -431,6 +432,7 @@ High → Low produces `1000, 250, 100, 25`.
 | Inventory | deduction correctness, non-negative invariant, low-stock flag, audit events recorded |
 | **Concurrency** | two parallel purchases of the last unit → exactly one success (real parallelism in the test, not mocked) |
 | Orders | atomic creation with stock deduction, rollback on any line failure, snapshot immutability after later product edits, status ladder enforcement |
+| Guest | guest cart add/view/update; merge-on-login correctness; guest cannot reach checkout/order creation (401) |
 | Admin critical | product CRUD validation, SKU uniqueness, delete-blocked-when-ordered, stock adjustment rules |
 | Responsive | key storefront pages at mobile/tablet/desktop viewports (browser-tested) |
 | Critical business logic | every §17 rule tagged (C) has at least one automated test |
@@ -452,6 +454,7 @@ High → Low produces `1000, 250, 100, 25`.
 * Negative stock attempted (admin sets −5, oversell race) → rejected by app + DB invariant; audited attempt logged.
 * Cart holding stale IDs after bulk delete → server purges invalid lines with a message.
 * Session expiry mid-checkout → re-auth, cart survives.
+* Guest builds a cart, then logs in → guest cart merges into the user cart; duplicate lines qty-summed then stock-capped; unavailable products dropped with a visible flag; merge is atomic.
 * Duplicate registration across email casing (`A@x.com` vs `a@x.com`) → normalized uniqueness rejects the dupe.
 * Deep link to an inactive product from an old wishlist → unavailable state, not an error.
 
@@ -465,6 +468,7 @@ High → Low produces `1000, 250, 100, 25`.
 * **Catalog:** given filters {category: Dresses, price: [50, 300], in-stock} with search "linen", every result matches all three conditions simultaneously, sorted per selection, consistently across pages. (C)
 * **Search:** "WING" matches "Wings Coat" case-insensitively; `' OR 1=1` returns no results and no error.
 * **Cart:** displayed totals equal backend-computed totals; tampering with any client-side total changes nothing server-side. (C)
+* **Guest cart:** a guest's session cart merges into their user cart on login with stock-validated quantities; checkout remains unreachable for guests (401). (C)
 * **Checkout:** confirming an order deducts stock for every line atomically; failure of any line rolls back all. (C)
 * **Inventory:** stock never goes below 0, even under the parallel purchase tests. (C)
 * **Orders:** a historical order renders identical totals after the product is repriced, renamed, or archived. (C)
@@ -479,8 +483,8 @@ High → Low produces `1000, 250, 100, 25`.
 
 * Product reviews & ratings (and rating-based sort/filter).
 * Promotions engine, coupon codes, cart-level discounts.
-* Real payment gateway integration (v1 = sandbox/manual payment status).
-* Guest checkout (v1 requires registration).
+* Real payment gateway integration — none in v1 (no Razorpay/Stripe/PayPal, no SDK, no webhooks, no provider API). Orders stay `PENDING_PAYMENT` until an admin manually confirms; a gateway requires explicit written approval later.
+* Guest checkout — guests may keep a temporary session cart, but checkout/order creation always requires sign-in.
 * Product variants (size/color matrices) beyond simple options — v1 is single-SKU products.
 * Email/SMS notifications, order-confirmation emails, password-reset emails (requires mail infrastructure).
 * Returns, refunds, exchanges workflows.
@@ -509,26 +513,36 @@ HEYRAH v1 is a two-surface commerce platform: a premium, accessible, teal-and-go
 
 ## Critical risks
 
-* **Stack not yet approved** — search/sort implementation details (collation, decimal types) depend on the database choice; decision needed before scaffolding.
-* **Payments deferred to sandbox** — status semantics must stay clean so a real gateway can bolt on without schema surgery.
+* **Payments deferred to manual confirmation** — payment-status semantics must stay clean so a real gateway can bolt on later without schema surgery.
 * **Concurrency oversell** is the classic e-commerce failure; treated as mandatory-tested, not nice-to-have.
+* **Guest cart merge edge cases** — duplicate lines, over-stock merges, and unavailable products during login merge are specified and must be tested (§16).
 * **Brand overuse** — gold-heavy screens or logo distortion would break the identity rules; mitigated by the UI checks in §17.
 * **Scope creep** — §18 exists to keep v1 shippable; anything added needs written approval.
+
+## Approved v1 decisions (locked)
+
+| Decision | Outcome |
+|---|---|
+| Tech stack | Next.js + TypeScript frontend, FastAPI + Python backend, PostgreSQL, SQLAlchemy, Pydantic, Docker deploy |
+| Currency | Single currency: **INR (₹)** |
+| Sessions | Secure server-side cookie sessions; **no JWT in v1** (would need explicit approval) |
+| Guest cart | Temporary session cart allowed; checkout/order creation requires login; merge on login |
+| Guest checkout | Not allowed in v1 |
+| Payment | No gateway in v1; orders created `PENDING_PAYMENT`; admin manually confirms `PAID`; customers can never set PAID |
+| Ordering channel | HEYRAH website only — no WhatsApp/off-site ordering |
+| Cart-level coupons | Out of v1 (confirmed via §18) |
 
 ## Open decisions requiring approval
 
 | # | Decision | Recommendation |
 |---|---|---|
-| 1 | Tech stack | Next.js frontend, FastAPI backend, PostgreSQL, Docker deploy |
-| 2 | Discount model per product | fixed amount OR percent, one type per product |
-| 3 | Low-stock default threshold | 5 units |
-| 4 | Shipping v1 | flat rate + free-above-threshold (amounts from business) |
-| 5 | Currency | single currency — value to confirm |
-| 6 | Cart-level coupons | out of v1 (confirmed via §18) |
-| 7 | Guest checkout | no in v1 |
-| 8 | Admin login surface | shared login + role gate |
-| 9 | Popularity sort | defer until real order data exists |
-| 10 | Sessions vs JWT | decide together with the stack |
+| 1 | Discount model per product | fixed amount OR percent, one type per product |
+| 2 | Low-stock default threshold | 5 units |
+| 3 | Shipping v1 | flat rate + free-above-threshold (amounts from business) |
+| 4 | Admin login surface | shared login + role gate |
+| 5 | Popularity sort | defer until real order data exists |
+| 6 | Hosting/infrastructure provider | decide before deployment phase |
+| 7 | Email infrastructure (receipts, password reset) | defer; admin-side reset workaround in v1 |
 
 ## Recommended next phase
 
