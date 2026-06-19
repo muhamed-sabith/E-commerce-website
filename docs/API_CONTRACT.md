@@ -76,9 +76,26 @@ Guests calling `/checkout/*` or any customer resource receive `401 authenticatio
 **Payment behavior (v1 — no payment gateway):**
 
 - Every newly created order has `payment_status = PENDING_PAYMENT`. There is no SDK, no webhook, no provider API, nothing to integrate.
-- Payment confirmation is **manual, admin-only**: an authorized admin flips the order to `PAID` (see §4). The action is audited.
-- **Customers have no endpoint to set any payment status** — attempting it server-side is impossible, not merely hidden.
+- The checkout response includes `payment: {mode, demo_payment_url?}` — `mode: "demo"` carries the dedicated demo payment URL (`/payment/demo/{order-id}`) for the UX flow; `mode: "manual"` omits it. This field is configuration-driven, not a promise to any provider.
+- Outside demo mode, payment confirmation is **manual, admin-only** (see §4), audited.
+- **Customers have no endpoint to set arbitrary payment status** — the only customer-reachable `PENDING_PAYMENT → PAID` path is the demo simulator below, and only when the server runs in demo mode.
 - Semantics are kept gateway-ready: a real provider can be approved later without changing order creation.
+
+**DEMO PAYMENT SIMULATION (mode = `demo` only — NOT a real payment provider):**
+
+These endpoints exist only when the server is configured with payment mode `demo`; in any other mode they are unmounted (404). They simulate, never process: no money moves, no provider is contacted, nothing real is charged.
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| POST | `/orders/{id}/demo-payment/confirm` | owner USER | deterministic simulated success → order `PENDING_PAYMENT → PAID` (audited, idempotent); rejected for foreign orders or orders not in `PENDING_PAYMENT` |
+| POST | `/orders/{id}/demo-payment/fail` | owner USER | deterministic simulated failure → order unchanged, stays `PENDING_PAYMENT`; order remains fully valid, retry allowed |
+
+Rules:
+
+- Demo endpoints operate **only on the calling user's own order** (object-level authz) and only from `PENDING_PAYMENT`.
+- **REAL PAYMENT PROVIDER vs DEMO PAYMENT:** a real provider, if approved later, implements the same payment-service interface server-side and would add its own endpoints — it is *not* this surface, and nothing in v1 pretends to be one.
+- The demo page UI itself (mock method selector: Demo Card / Demo UPI / Demo QR, processing animation, success/failure states) is a frontend concern (REQUIREMENTS §10/§13); these two endpoints are its entire backend.
+- No request or response in this flow carries — or has fields shaped to carry — card numbers, CVV, UPI PIN, or banking passwords.
 
 ## 4. Admin (ADMIN session only)
 

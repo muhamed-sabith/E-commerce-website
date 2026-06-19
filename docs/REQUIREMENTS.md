@@ -123,8 +123,8 @@ Each feature is specified as: **purpose / user action / expected system behavior
 * **Purpose:** convert cart into an order safely.
 * **User action:** proceeds to checkout, selects/enters address, confirms.
 * **Expected behavior:** full flow per §10 — re-validate cart server-side, compute authoritative totals, require shipping address, create order atomically with inventory deduction.
-* **Success state:** order created with human-readable order number, status per §10, payment awaiting manual admin confirmation (`PENDING_PAYMENT`), confirmation summary shown; stock correctly decremented.
-* **Errors/edges:** race — last item sold between cart-view and confirm → order rejected for that line with clear message, rest may proceed (per-line outcome, documented); server-side validation failure → order not created, cart preserved with reasons, retry offered; empty cart → checkout unreachable; guests reaching checkout → prompted to sign in, guest cart merges on login.
+* **Success state:** order created with human-readable order number, status per §10, `PENDING_PAYMENT` (awaiting confirmation), stock correctly decremented; when demo payment mode is enabled (v1 dev/demo default), the user is taken straight to the dedicated demo payment screen (§10) and from there to the order confirmation page.
+* **Errors/edges:** race — last item sold between cart-view and confirm → order rejected for that line with clear message, rest may proceed (per-line outcome, documented); server-side validation failure → order not created, cart preserved with reasons, retry offered; empty cart → checkout unreachable; guests reaching checkout → prompted to sign in, guest cart merges on login; simulated demo payment failure → order remains valid and `PENDING_PAYMENT`, retry offered on the demo page.
 
 ### 2.12 Address management
 
@@ -341,7 +341,10 @@ High → Low produces `1000, 250, 100, 25`.
 * **Authoritative backend pricing:** order lines snapshot product name, unit price, discount, final price, qty, line total at purchase time. Client-supplied money is ignored everywhere.
 * **Inventory deduction:** per §9, same transaction as the order.
 * **Order statuses:** `pending → confirmed → shipped → delivered`, with `cancelled` reachable from pending/confirmed only; transitions restricted, audited (who/when), no skipping backwards (shipped → pending rejected).
-* **Payment (v1): no payment gateway.** No Razorpay/Stripe/PayPal, no payment SDK, no webhook, no provider API in v1. Every order is created with `payment_status = PENDING_PAYMENT`. An authorized admin then manually confirms payment by setting it to `PAID` (audited, visible in order history). **Customers can never set an order to PAID** — the endpoint does not exist for them, server-enforced. The schema keeps the semantics clean so a real gateway can be approved later without surgery.
+* **Payment (v1): no payment gateway.** No Razorpay/Stripe/PayPal, no payment SDK, no webhook, no provider API in v1. Every order is created with `payment_status = PENDING_PAYMENT`. **Customers can never mark an arbitrary order as PAID** — outside the demo flow below, no customer endpoint for payment status exists at all; the schema keeps the semantics clean so a real gateway can be approved later without surgery.
+* **Demo payment simulation (v1 UX — not real payment processing):** to demonstrate the complete e-commerce flow, v1 ships a clearly-labeled **demo payment page** (`/payment/demo/{order-id}`): HEYRAH branding, order number, ordered products, total amount in INR, payment summary, mock method selector (Demo Card / Demo UPI / Demo QR — simulations only), prominent "Pay ₹X (Demo)" action, a "DEMO / TEST MODE" indicator always visible, and a restrained processing sequence ("Securing your payment…" → "Processing…" → "Payment confirmed") honoring reduced-motion settings. Deterministic outcomes: simulated **success** transitions `PENDING_PAYMENT → PAID`; simulated **failure** ("Simulate Payment Failure") leaves the order fully valid and `PENDING_PAYMENT` with retry. The page never collects or stores card numbers, CVV, UPI PIN, banking passwords, or any real financial credential, and never pretends to contact a real provider.
+* **Demo gating & audit:** the simulator is a development/demo tool only. It exists solely when the server runs with payment mode `demo` (environment configuration); **production configuration can disable it completely** — endpoints unmounted (404) and the demo route inert. In demo mode it is the *only* customer-reachable path from `PENDING_PAYMENT` to `PAID`, and every demo transition is audited. Outside demo mode, only the admin manual confirmation (`PAID`, audited) exists.
+* **Future gateway compatibility:** the payment layer is an abstraction (`PaymentService` / provider interface — ARCHITECTURE) with `DemoPaymentProvider` as the v1 implementation; a future real provider implements the same interface without rewriting orders, checkout, order history, or admin order management.
 * **Shipping information:** address snapshot stored on the order (survives later edits/deletions in the address book).
 * **Order number:** human-readable, unique, documented format (e.g. `HEY-YYMMDD-####`).
 * **Ordering channel:** orders are created directly on the HEYRAH website only. No WhatsApp ordering, no off-site ordering flows in v1.
@@ -403,6 +406,7 @@ High → Low produces `1000, 250, 100, 25`.
 * **Spacing:** one spacing scale (4/8px system), consistent rhythm.
 * **Visual hierarchy:** one focus per screen region; prices, CTAs, product imagery lead; "Wings of Style" appears only where it serves a brand moment.
 * **Animations:** fast, purposeful, restrained (200–300ms, ease-out; nothing bouncy or looping; everything skippable under reduced motion).
+* **Demo payment page:** premium, secure-looking, clearly-demo presentation — deep teal + gold accents, premium typography, generous spacing, clean hierarchy, smooth restrained transitions, responsive mobile layout, "DEMO / TEST MODE" indicator always visible. Professional enough for a client presentation while unmistakably a simulator.
 
 ---
 
@@ -414,6 +418,7 @@ High → Low produces `1000, 250, 100, 25`.
 * **Accessibility:** per §13.
 * **SEO:** meaningful titles/meta per product & category, canonical URLs, semantic headings, sitemap, product structured data where the stack allows; storefront pages server-rendered or pre-rendered by Next.js — a JS-only blank page on crawl is a defect.
 * **Reliability:** every money/stock mutation transactional; versioned migrations; documented backup strategy before production.
+* **Local dev/demo self-sufficiency:** the entire flow — browse → cart → checkout → demo payment → confirmation — must run on localhost with no gateway account, no API key, no subscription, no external payment service, and no real money; the demo simulator is fully self-contained in the local HEYRAH development environment.
 * **Observability (proportionate):** structured logs with request ids; health endpoint; error rate visible during dev/deploy; dashboards later, logs from day one.
 
 ---
@@ -432,6 +437,7 @@ High → Low produces `1000, 250, 100, 25`.
 | Inventory | deduction correctness, non-negative invariant, low-stock flag, audit events recorded |
 | **Concurrency** | two parallel purchases of the last unit → exactly one success (real parallelism in the test, not mocked) |
 | Orders | atomic creation with stock deduction, rollback on any line failure, snapshot immutability after later product edits, status ladder enforcement |
+| Demo payment | demo success → `PAID` (audited, idempotent replay); simulated failure → order stays valid + `PENDING_PAYMENT`; demo endpoints unmounted when mode ≠ demo; no credential-shaped field exists anywhere in the flow; customer cannot reach PAID outside the demo/admin paths |
 | Guest | guest cart add/view/update; merge-on-login correctness; guest cannot reach checkout/order creation (401) |
 | Admin critical | product CRUD validation, SKU uniqueness, delete-blocked-when-ordered, stock adjustment rules |
 | Responsive | key storefront pages at mobile/tablet/desktop viewports (browser-tested) |
@@ -483,7 +489,8 @@ High → Low produces `1000, 250, 100, 25`.
 
 * Product reviews & ratings (and rating-based sort/filter).
 * Promotions engine, coupon codes, cart-level discounts.
-* Real payment gateway integration — none in v1 (no Razorpay/Stripe/PayPal, no SDK, no webhooks, no provider API). Orders stay `PENDING_PAYMENT` until an admin manually confirms; a gateway requires explicit written approval later.
+* Real payment gateway integration — none in v1 (no Razorpay/Stripe/PayPal, no SDK, no webhooks, no provider API). Orders stay `PENDING_PAYMENT` until confirmed — via the clearly-labeled demo payment simulator (demo environments only) or an admin manually. A real gateway requires explicit written approval later; the payment abstraction keeps the door open without v1 commitment.
+* Real financial credential collection — the demo payment flow must never create fields for card numbers, CVV, UPI PIN, or banking passwords (not even labeled "demo"); only a mock method selector exists.
 * Guest checkout — guests may keep a temporary session cart, but checkout/order creation always requires sign-in.
 * Product variants (size/color matrices) beyond simple options — v1 is single-SKU products.
 * Email/SMS notifications, order-confirmation emails, password-reset emails (requires mail infrastructure).
@@ -513,7 +520,8 @@ HEYRAH v1 is a two-surface commerce platform: a premium, accessible, teal-and-go
 
 ## Critical risks
 
-* **Payments deferred to manual confirmation** — payment-status semantics must stay clean so a real gateway can bolt on later without schema surgery.
+* **Payments deferred to manual confirmation** — payment-status semantics must stay clean so a real gateway can bolt on later without schema surgery; the demo simulator must stay visually and architecturally separate from that future path (one interface, two implementations — never a half-real gateway).
+* **Demo mode leaking into production** — mitigated by configuration gating: demo endpoints unmounted and route inert unless payment mode = `demo`; deployment checklist must verify the setting before launch.
 * **Concurrency oversell** is the classic e-commerce failure; treated as mandatory-tested, not nice-to-have.
 * **Guest cart merge edge cases** — duplicate lines, over-stock merges, and unavailable products during login merge are specified and must be tested (§16).
 * **Brand overuse** — gold-heavy screens or logo distortion would break the identity rules; mitigated by the UI checks in §17.
@@ -528,7 +536,7 @@ HEYRAH v1 is a two-surface commerce platform: a premium, accessible, teal-and-go
 | Sessions | Secure server-side cookie sessions; **no JWT in v1** (would need explicit approval) |
 | Guest cart | Temporary session cart allowed; checkout/order creation requires login; merge on login |
 | Guest checkout | Not allowed in v1 |
-| Payment | No gateway in v1; orders created `PENDING_PAYMENT`; admin manually confirms `PAID`; customers can never set PAID |
+| Payment | No gateway in v1; orders created `PENDING_PAYMENT`; `PAID` via admin manual confirmation, or via the clearly-labeled demo payment simulator in demo environments only (audited); production can disable demo mode completely; customers can never set PAID outside these paths |
 | Ordering channel | HEYRAH website only — no WhatsApp/off-site ordering |
 | Cart-level coupons | Out of v1 (confirmed via §18) |
 

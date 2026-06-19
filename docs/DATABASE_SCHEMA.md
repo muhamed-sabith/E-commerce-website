@@ -127,7 +127,7 @@ id PK, order_id FK, from_status NULL→to_status, actor_type CHECK ('USER','ADMI
 
 ### 2.12 payments — **future-only, not part of v1**
 
-Reserved for the day a real gateway is approved (would hold method, gateway status, provider references, webhook evidence). **v1 builds no payments table and no gateway integration**: the order's `payment_status` column is the single source of payment truth, admin-confirmed manually. Listed here only so the v1 schema leaves clean room for it — no v1 requirement references provider references, gateway IDs, or webhooks.
+Reserved for the day a real gateway is approved (would hold method, gateway status, provider references, webhook evidence). **v1 builds no payments table and no gateway integration**: the order's `payment_status` column is the single source of payment truth, confirmed via admin (manual) or the clearly-labeled demo payment simulator (demo environments only). Listed here only so the v1 schema leaves clean room for it — no v1 requirement references provider references, gateway IDs, or webhooks, and **no gateway-specific fields are added to v1 tables**.
 
 *(If ever built: id PK, order_id FK, method VARCHAR(30), status, amount DECIMAL(12,2), provider_reference VARCHAR(80) NULL, created_at / updated_at.)*
 

@@ -1,6 +1,6 @@
 # HEYRAH — Architecture Document
 
-**Status:** v1.0 — synchronized with final v1 decisions (cookie sessions, no gateway, manual payment confirmation)
+**Status:** v1.1 — synchronized with final v1 decisions (cookie sessions, no real gateway, demo payment simulation)
 **Depends on:** `docs/REQUIREMENTS.md`, `docs/DATABASE_SCHEMA.md`
 
 ---
@@ -64,9 +64,27 @@ POST /api/v1/checkout                    (authenticated sessions only — guests
   → return order_number, totals snapshot, status
 ```
 
-No partial orders: any line failure rolls back the entire transaction — order insert, snapshots, and every stock decrement together. Payment is never captured here; the order stays `PENDING_PAYMENT` until an admin manually confirms `PAID`.
+No partial orders: any line failure rolls back the entire transaction — order insert, snapshots, and every stock decrement together. Payment is never captured here; the order is created `PENDING_PAYMENT` and proceeds per §5.5.
 
 Guest carts merge into the user cart on login (server union, duplicate lines qty-summed, quantities capped by stock, unavailable products dropped — one transaction).
+
+## 5.5 Payment abstraction (v1: demo simulation only)
+
+```
+Checkout → Order Service → PaymentService (abstraction) → PaymentProvider interface
+                                                            ├── DemoPaymentProvider   (v1 — demo environments only)
+                                                            └── RealPaymentProvider   (future — same interface, not built)
+```
+
+- **PaymentService** is the single module behind payment-status transitions; it exposes `confirm(order) → PAID` and `fail(order) → stay PENDING_PAYMENT` semantics to its callers.
+- **DemoPaymentProvider** (v1): deterministic simulate-success / simulate-fail. It never contacts any external service, never processes money, never stores credentials. It is the only customer-reachable `PENDING_PAYMENT → PAID` path — and only in demo mode.
+- **Future RealPaymentProvider** implements the identical interface; orders, checkout, order history, and admin order management are untouched when it arrives.
+- **Mode gating:** payment mode comes from environment configuration (`PAYMENT_MODE=demo|manual`):
+  - `demo` → demo endpoints mounted, demo payment page active (`/payment/demo/{order-id}`), demo transitions audited;
+  - `manual` → demo endpoints **unmounted (404)**, demo route inert; only admin manual confirmation exists;
+  - production deploys with `PAYMENT_MODE=manual` — the deployment checklist verifies it.
+- **Demo flow UX (frontend, Next.js):** after checkout success the client routes to `/payment/demo/{order-id}` — HEYRAH-branded demo payment page (order summary, INR total, mock method selector Demo Card/UPI/QR, prominent "Pay ₹X (Demo)", always-visible "DEMO / TEST MODE" indicator) → restrained processing sequence ("Securing your payment…" → "Processing…" → "Payment confirmed", reduced-motion safe) → deterministic success (order `PAID`, continue/view-order actions) or simulated failure (order stays valid + `PENDING_PAYMENT`, retry, no broken order). The page never renders fields shaped like real payment inputs — no card numbers, CVV, UPI PIN, banking passwords — only the mock selector.
+- Audit: every transition through the abstraction writes to `order_status_history` (actor + mode), so "how did this get PAID?" is always answerable.
 
 ## 6. Search / filter / sort shape
 
