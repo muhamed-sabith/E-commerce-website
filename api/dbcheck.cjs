@@ -1,0 +1,1 @@
+const {PrismaClient} = require('@prisma/client'); const p = new PrismaClient(); p.$queryRawUnsafe('SELECT 1 AS ok').then(r => { console.log('DB roundtrip OK:', JSON.stringify(r)); return p.$disconnect(); }).catch(e => { console.error('DB FAIL:', e.message); process.exit(1); });

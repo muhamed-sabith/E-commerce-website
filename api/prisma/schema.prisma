@@ -1,0 +1,13 @@
+// HEYRAH — Prisma schema (Phase 4: connection foundation only).
+// Business models (users, products, orders, carts, inventory) land in the
+// database implementation phase and MUST mirror docs/DATABASE_SCHEMA.md,
+// which stays the relational source of truth.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
