@@ -2,7 +2,7 @@
 
 **Status:** v0.3 draft — synchronized with final v1 decisions (INR, manual payment confirmation, guest session cart)
 **Depends on:** `docs/REQUIREMENTS.md` (§4 product fields, §8–10 commerce rules, §11 auth)
-**Scope:** relational design for PostgreSQL. No ORM, no migrations, no application code in this document.
+**Scope:** relational design for PostgreSQL. This document remains the entity/constraint source of truth — the Prisma schema mirrors it, not the other way around. No application code in this document.
 
 ---
 
@@ -192,3 +192,4 @@ Rendering note: the mermaid block lives inside this markdown so GitHub renders i
 - JSONB vs relational rows for product specifications (v0.1 chose relational for queryability).
 - Order number generator: sequence-per-day vs random tail — decide with implementation.
 - ~~Session-token cart vs server-side guest cart storage~~ — **decided (v1): guest cart keyed by the unauthenticated session** (`carts.session_token`), per the cookie-session decision; merge-on-login rules specified above.
+- ~~SQLAlchemy/Alembic vs Prisma~~ — **decided: Prisma ORM + Prisma Migrations** (PERN stack change); models mirror this document — entities and constraints unchanged.

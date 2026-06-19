@@ -416,7 +416,7 @@ High → Low produces `1000, 250, 100, 25`.
 * **Scalability:** stateless API with server-side session storage; read-heavy design allows a caching layer later without refactoring.
 * **Maintainability:** per AGENTS.md code quality — layered structure, reusable validation, reusable business logic, clear naming, no duplicated commerce rules (pricing math lives in exactly one place).
 * **Accessibility:** per §13.
-* **SEO:** meaningful titles/meta per product & category, canonical URLs, semantic headings, sitemap, product structured data where the stack allows; storefront pages server-rendered or pre-rendered by Next.js — a JS-only blank page on crawl is a defect.
+* **SEO:** meaningful titles/meta per product & category, canonical URLs, semantic headings, sitemap, product structured data where the stack allows; storefront pages ship with per-route meta and crawlable URLs (SPA serving strategy per ARCHITECTURE §2) — a JS-only blank page on crawl is a defect.
 * **Reliability:** every money/stock mutation transactional; versioned migrations; documented backup strategy before production.
 * **Local dev/demo self-sufficiency:** the entire flow — browse → cart → checkout → demo payment → confirmation — must run on localhost with no gateway account, no API key, no subscription, no external payment service, and no real money; the demo simulator is fully self-contained in the local HEYRAH development environment.
 * **Observability (proportionate):** structured logs with request ids; health endpoint; error rate visible during dev/deploy; dashboards later, logs from day one.
@@ -531,7 +531,7 @@ HEYRAH v1 is a two-surface commerce platform: a premium, accessible, teal-and-go
 
 | Decision | Outcome |
 |---|---|
-| Tech stack | Next.js + TypeScript frontend, FastAPI + Python backend, PostgreSQL, SQLAlchemy, Pydantic, Docker deploy |
+| Tech stack | PERN: React + TypeScript + Vite + React Router frontend, Node.js + Express.js + TypeScript backend, PostgreSQL, Prisma ORM, Zod validation, Docker deploy — canonical record: `docs/TECH_STACK.md` |
 | Currency | Single currency: **INR (₹)** |
 | Sessions | Secure server-side cookie sessions; **no JWT in v1** (would need explicit approval) |
 | Guest cart | Temporary session cart allowed; checkout/order creation requires login; merge on login |
@@ -554,4 +554,4 @@ HEYRAH v1 is a two-surface commerce platform: a premium, accessible, teal-and-go
 
 ## Recommended next phase
 
-**Phase 3 — Architecture & Design System (documentation only):** data model/schema draft with types and constraints, API surface map, design tokens derived from the logo reference (teal/gold palette, typography scale, spacing system), and the tech stack decision record. No application code yet — same discipline as this phase.
+**Implementation phase (on explicit start):** scaffold `api/` (Express + TypeScript + Prisma) and `web/` (React + TypeScript + Vite) per ARCHITECTURE §9 and TECH_STACK.md, then feature phases with the §15 test matrix as the gate. Documentation discipline unchanged — architecture docs are updated alongside code from the first commit.

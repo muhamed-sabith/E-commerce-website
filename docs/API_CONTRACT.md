@@ -1,6 +1,6 @@
 # HEYRAH — API Contract Draft
 
-**Status:** v0.3 draft — guest cart, manual payment model, and conventions synchronized with final v1 decisions
+**Status:** v0.4 draft — guest cart, demo payment model, conventions; framework-neutral (Express implements it; contract unchanged by the stack change)
 **Depends on:** `docs/REQUIREMENTS.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE_SCHEMA.md`
 **No implementation exists yet.** This is the surface the API will be built to match.
 
