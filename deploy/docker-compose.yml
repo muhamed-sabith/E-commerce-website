@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: heyrah_dev
+      # Dev-only container; override in real deployments.
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d heyrah_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ../api
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres@postgres:5432/heyrah_dev
+      SESSION_SECRET: replace-me-in-real-deployments-with-32-plus-chars
+      API_ALLOWED_ORIGIN: http://localhost:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build: ../web
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
