@@ -1,0 +1,29 @@
+{
+  "name": "heyrah",
+  "private": true,
+  "version": "0.1.0",
+  "description": "HEYRAH — Wings of Style. Premium e-commerce platform (PERN stack).",
+  "workspaces": [
+    "web",
+    "api"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace web",
+    "dev:api": "npm run dev --workspace api",
+    "build": "npm run build --workspace web && npm run build --workspace api",
+    "test": "npm run test --workspace web && npm run test --workspace api",
+    "typecheck": "npm run typecheck --workspace web && npm run typecheck --workspace api",
+    "lint": "npm run lint --workspace web && npm run lint --workspace api",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.53.0",
+    "@types/node": "^22.15.0",
+    "prettier": "^3.5.3"
+  },
+  "allowScripts": {
+    "@prisma/engines@6.19.3": true,
+    "esbuild@0.28.2": true,
+    "prisma@6.19.3": true
+  }
+}

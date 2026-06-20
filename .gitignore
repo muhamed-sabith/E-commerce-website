@@ -1,26 +1,26 @@
 # Dependencies
 node_modules/
-.venv/
-venv/
 
 # Build output
-.next/
-out/
 dist/
 build/
-__pycache__/
-*.pyc
+out/
 
 # Env & secrets — never commit
 .env
 .env.*
 !.env.example
 
+# Local infrastructure (portable PostgreSQL binaries + data files)
+/local/
+
 # Test & tool caches
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
 coverage/
+test-results/
+playwright-report/
+blob-report/
+*.tsbuildinfo
+.eslintcache
 *.log
 npm-debug.log*
 
