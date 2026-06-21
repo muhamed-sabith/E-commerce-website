@@ -17,5 +17,6 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["src", "tests", "prisma"]
+  "include": ["src", "tests", "prisma"],
+  "exclude": ["**/*.test.ts"]
 }

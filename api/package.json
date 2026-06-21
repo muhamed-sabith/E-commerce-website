@@ -8,6 +8,8 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "test": "vitest run",
+    "test:db": "cross-env DATABASE_URL=postgresql://postgres@localhost:5432/heyrah_test vitest run",
+    "seed": "tsx prisma/seed.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
@@ -25,6 +27,7 @@
     "@types/express": "^5.0.1",
     "@types/node": "^22.15.0",
     "@types/supertest": "^6.0.3",
+    "cross-env": "^7.0.3",
     "eslint": "^9.28.0",
     "globals": "^16.2.0",
     "prettier": "^3.5.3",

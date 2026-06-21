@@ -1,7 +1,7 @@
-// HEYRAH — Prisma schema (Phase 4: connection foundation only).
-// Business models (users, products, orders, carts, inventory) land in the
-// database implementation phase and MUST mirror docs/DATABASE_SCHEMA.md,
-// which stays the relational source of truth.
+// HEYRAH — Prisma schema.
+// Mirrors docs/DATABASE_SCHEMA.md (v0.3), which stays the relational source
+// of truth. Phase 5 scope: catalog tables only — categories, products,
+// product_images, product_specifications. No speculative models.
 
 generator client {
   provider = "prisma-client-js"
@@ -10,4 +10,73 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+/// §2.2 categories
+model Category {
+  id        BigInt    @id @default(autoincrement()) @db.BigInt
+  name      String    @db.VarChar(80)
+  slug      String    @unique @db.VarChar(90) // URL-safe, stable
+  isActive  Boolean   @default(true) @map("is_active") // inactive → hidden from storefront
+  sortOrder Int       @default(0) @map("sort_order") // nav display order
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  products  Product[]
+
+  @@map("categories")
+}
+
+/// §2.3 products — money is NUMERIC, never float, never string
+model Product {
+  id                BigInt   @id @default(autoincrement()) @db.BigInt
+  name              String   @db.VarChar(120)
+  slug              String   @unique @db.VarChar(140) // derived, stable
+  sku               String   @unique @db.VarChar(40) // uppercase, HEY-<CAT>-#####
+  description       String   @db.Text
+  price             Decimal  @db.Decimal(10, 2) // CHECK (price > 0) enforced by migration SQL
+  discountType      String   @default("none") @map("discount_type") @db.VarChar(10) // CHECK-in ('none','percent','fixed')
+  discountValue     Decimal? @map("discount_value") @db.Decimal(10, 2)
+  categoryId        BigInt   @map("category_id") @db.BigInt
+  status            String   @default("active") @db.VarChar(12) // CHECK-in ('active','inactive','archived')
+  stockQuantity     Int      @default(0) @map("stock_quantity") // CHECK (>= 0) enforced by migration SQL
+  lowStockThreshold Int?     @map("low_stock_threshold")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  category       Category               @relation(fields: [categoryId], references: [id])
+  images         ProductImage[]
+  specifications ProductSpecification[]
+
+  @@index([categoryId])
+  @@index([status, stockQuantity])
+  @@index([price])
+  @@index([createdAt(sort: Desc)])
+  @@map("products")
+}
+
+/// §2.4 product_images — position 0 = primary
+model ProductImage {
+  id        BigInt @id @default(autoincrement()) @db.BigInt
+  productId BigInt @map("product_id") @db.BigInt
+  filePath  String @map("file_path") @db.VarChar(255)
+  altText   String @map("alt_text") @db.VarChar(200)
+  position  Int
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, position])
+  @@map("product_images")
+}
+
+/// §2.5 product_specifications — key/value pairs
+model ProductSpecification {
+  id        BigInt @id @default(autoincrement()) @db.BigInt
+  productId BigInt @map("product_id") @db.BigInt
+  specKey   String @map("spec_key") @db.VarChar(60)
+  specValue String @map("spec_value") @db.VarChar(255)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, specKey])
+  @@map("product_specifications")
 }
