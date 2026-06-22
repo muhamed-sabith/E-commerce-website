@@ -1,0 +1,105 @@
+.product-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.product-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-teal-600);
+}
+
+.product-card__media {
+  aspect-ratio: 4 / 3;
+  background: var(--color-neutral-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.product-card__media.is-fallback::before {
+  content: "HEYRAH";
+  color: var(--color-neutral-400);
+  font-size: var(--type-14);
+  letter-spacing: 0.2em;
+}
+
+.product-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-card__body {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.product-card__category {
+  margin: 0;
+  font-size: var(--type-12);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-ink-600);
+}
+
+.product-card__name {
+  margin: 0;
+  font-size: var(--type-16);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.product-card__price {
+  margin: var(--space-1) 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.product-card__price .price-strike {
+  color: var(--color-ink-600);
+  font-size: var(--type-14);
+}
+
+.product-card__price .price-strike:only-child {
+  color: var(--color-ink-900);
+  font-size: var(--type-18);
+  text-decoration: none;
+}
+
+.product-card__final {
+  color: var(--color-teal-700);
+  font-weight: 600;
+  font-size: var(--type-18);
+}
+
+.product-card__badge {
+  background: var(--color-gold-500);
+  color: var(--color-teal-900);
+  font-size: var(--type-12);
+  font-weight: 600;
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+}
+
+.product-card__stock {
+  margin: 0;
+  font-size: var(--type-12);
+  color: var(--color-success);
+}
+
+.product-card__stock.is-out {
+  color: var(--color-danger);
+}

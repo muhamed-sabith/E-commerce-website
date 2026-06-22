@@ -1,0 +1,229 @@
+.catalog__inner,
+.pdp__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+}
+
+.catalog__head {
+  padding: var(--space-7) 0 var(--space-5);
+  text-align: center;
+}
+
+.catalog__title {
+  font-size: var(--type-36);
+  margin: 0;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.catalog__subtitle {
+  color: var(--color-ink-600);
+  margin: var(--space-2) 0 0;
+}
+
+.catalog__clear {
+  color: var(--color-teal-600);
+}
+
+.catalog__layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: var(--space-6);
+  padding-bottom: var(--space-8);
+}
+
+/* ---- filters ---- */
+
+.catalog__filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.catalog__filter-section h2 {
+  font-size: var(--type-14);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 var(--space-3);
+  color: var(--color-ink-900);
+}
+
+.catalog__checks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.catalog__check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--type-14);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.catalog__check-count {
+  color: var(--color-ink-600);
+}
+
+.catalog__price-row {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.catalog__price-row label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--type-12);
+  color: var(--color-ink-600);
+  flex: 1;
+}
+
+.catalog__price-row input {
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+  font-size: var(--type-14);
+}
+
+.catalog__reset {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--color-teal-600);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: var(--type-14);
+  padding: var(--space-2) 0;
+  min-height: 44px;
+}
+
+/* ---- toolbar ---- */
+
+.catalog__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.catalog__count {
+  margin: 0;
+  color: var(--color-ink-600);
+  font-size: var(--type-14);
+}
+
+.catalog__sort {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--type-14);
+}
+
+.catalog__sort select {
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+  background: #fff;
+  font-size: var(--type-14);
+}
+
+/* ---- grid ---- */
+
+.catalog__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+}
+
+@media (max-width: 980px) {
+  .catalog__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog__filters {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-5);
+  }
+
+  .catalog__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .catalog__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.catalog__skeleton-card {
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    100deg,
+    var(--color-neutral-100) 40%,
+    var(--color-neutral-200) 50%,
+    var(--color-neutral-100) 60%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ---- states ---- */
+
+.catalog__state {
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  padding: var(--space-7);
+  text-align: center;
+  color: var(--color-ink-600);
+}
+
+.catalog__state button {
+  background: var(--color-teal-600);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-5);
+  min-height: 44px;
+  font-size: var(--type-14);
+  cursor: pointer;
+}
+
+/* ---- pagination ---- */
+
+.catalog__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  margin-top: var(--space-7);
+}
+
+.catalog__pagination button {
+  border: 1px solid var(--color-neutral-200);
+  background: #fff;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-4);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.catalog__pagination button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

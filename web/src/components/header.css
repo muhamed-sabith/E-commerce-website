@@ -1,0 +1,104 @@
+.site-header {
+  background: var(--color-teal-900);
+  color: #fff;
+  border-bottom: 3px solid var(--color-gold-500);
+}
+
+.site-header__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  min-height: 64px;
+  flex-wrap: wrap;
+}
+
+.site-header__brand {
+  font-size: var(--type-24);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--color-gold-300);
+  text-decoration: none;
+  padding: var(--space-2) 0;
+}
+
+.site-header__nav {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.site-header__link {
+  color: #fff;
+  text-decoration: none;
+  font-size: var(--type-14);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.site-header__link:hover {
+  background: var(--color-teal-700);
+}
+
+.site-header__link.is-active {
+  color: var(--color-gold-300);
+}
+
+.site-header__search {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.site-header__search-input {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-sm);
+  color: #fff;
+  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+  font-size: var(--type-14);
+  width: 200px;
+}
+
+.site-header__search-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.site-header__search-btn {
+  background: transparent;
+  border: 1px solid var(--color-gold-500);
+  color: var(--color-gold-300);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--type-14);
+  min-height: 44px;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.site-header__search-btn:hover {
+  background: rgba(201, 162, 75, 0.15);
+}
+
+@media (max-width: 720px) {
+  .site-header__inner {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .site-header__search {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .site-header__search-input {
+    flex: 1;
+    width: auto;
+  }
+}

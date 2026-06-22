@@ -1,0 +1,98 @@
+/*
+ * HEYRAH design tokens (docs/DESIGN_SYSTEM.md) — provisional values to be
+ * locked against public/brand/heyrah-logo-reference.jpg during refinement.
+ * No raw hex in components; everything references these variables.
+ */
+:root {
+  /* Palette roles */
+  --color-teal-900: #0d3b3f;
+  --color-teal-600: #146a70;
+  --color-teal-700: #10555a;
+  --color-teal-100: #d9ebec;
+  --color-gold-500: #c9a24b;
+  --color-gold-300: #e3c987;
+  --color-neutral-50: #fafaf8;
+  --color-neutral-100: #f1f0ec;
+  --color-neutral-200: #e2e1dc;
+  --color-neutral-400: #a8a6a0;
+  --color-ink-900: #1c2426;
+  --color-ink-600: #55615f;
+  --color-success: #1e7a46;
+  --color-danger: #b3423a;
+  --color-danger-dark: #8f2f28;
+
+  /* Typography scale (px) */
+  --type-12: 0.75rem;
+  --type-14: 0.875rem;
+  --type-16: 1rem;
+  --type-18: 1.125rem;
+  --type-20: 1.25rem;
+  --type-24: 1.5rem;
+  --type-30: 1.875rem;
+  --type-36: 2.25rem;
+  --type-48: 3rem;
+
+  /* 4/8px spacing system */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Radius — two levels max, borders preferred over shadows */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+
+  /* Motion: 150–300ms ease-out, transforms/opacity only */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 180ms;
+  --duration-base: 240ms;
+}
+
+/* Two voices: display (headings, prices) + workhorse body */
+body {
+  font-family:
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: var(--color-ink-900);
+  background: var(--color-neutral-50);
+  line-height: 1.5;
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+/* Prices use tabular figures so totals align (DESIGN_SYSTEM §2) */
+.price,
+.price-strike {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Visible focus everywhere (WCAG) */
+:focus-visible {
+  outline: 2px solid var(--color-teal-600);
+  outline-offset: 2px;
+}
+
+/* Motion honored globally: reduced-motion users get state changes
+   without movement (DESIGN_SYSTEM §4) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
