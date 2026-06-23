@@ -20,8 +20,8 @@ export function createApp(): express.Express {
   // Cookie-bearing CORS: exactly the web origin, nothing wildcarded.
   app.use(cors({ origin: env.API_ALLOWED_ORIGIN, credentials: true }));
   app.use(express.json({ limit: "1mb" }));
-  // Cookie foundation for server-side sessions (config in config/session.ts;
-  // session middleware + auth routes land in the authentication phase).
+  // Cookie foundation for server-side sessions (options in config/session.ts;
+  // session store in lib/session.ts, identity in middleware/auth.ts).
   app.use(cookieParser());
 
   app.use(healthRouter);

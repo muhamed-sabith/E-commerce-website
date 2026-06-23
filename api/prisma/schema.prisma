@@ -1,7 +1,7 @@
 // HEYRAH — Prisma schema.
 // Mirrors docs/DATABASE_SCHEMA.md (v0.3), which stays the relational source
-// of truth. Phase 5 scope: catalog tables only — categories, products,
-// product_images, product_specifications. No speculative models.
+// of truth. Phase 5 scope: catalog tables. Phase 6 adds §2.1 users plus the
+// §11.4 server-side session store. No speculative models.
 
 generator client {
   provider = "prisma-client-js"
@@ -10,6 +10,40 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+/// §2.1 users — identity + role; sessions are the authz runtime evidence
+model User {
+  id           BigInt    @id @default(autoincrement()) @db.BigInt
+  name         String    @db.VarChar(120) // required, trimmed
+  email        String    @unique @db.VarChar(255) // normalized lowercase
+  passwordHash String    @map("password_hash") @db.VarChar(255) // bcrypt output; plaintext never exists here
+  role         String    @default("USER") @db.VarChar(10) // CHECK-in ('USER','ADMIN') enforced by migration SQL
+  isBlocked    Boolean   @default(false) @map("is_blocked") // admin action (§3.10)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sessions Session[]
+
+  @@map("users")
+}
+
+/// §11.4 sessions — server-side state for instant revocation. The PK is the
+/// sha256 hash of the cookie token: a stolen DB dump yields no usable cookies.
+/// user_id NULL = guest session (cart phase keys off these).
+model Session {
+  id           String   @id @db.VarChar(64) // hex(sha256(token))
+  userId       BigInt?  @map("user_id") @db.BigInt
+  expiresAt    DateTime @map("expires_at") @db.Timestamptz(6) // absolute ceiling
+  lastSeenAt   DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6) // idle expiry basis
+  rotatedFrom  String?  @map("rotated_from") @db.VarChar(64) // audit chain of login rotation
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
 }
 
 /// §2.2 categories

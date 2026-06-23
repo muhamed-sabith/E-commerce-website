@@ -8,13 +8,15 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "test": "vitest run",
-    "test:db": "cross-env DATABASE_URL=postgresql://postgres@localhost:5432/heyrah_test vitest run",
+    "test:db": "cross-env DATABASE_URL=postgresql://postgres@localhost:5432/heyrah_test vitest run --no-file-parallelism",
     "seed": "tsx prisma/seed.ts",
+    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@prisma/client": "^6.8.0",
+    "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",

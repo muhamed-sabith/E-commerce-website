@@ -387,6 +387,18 @@ const PRODUCTS: { category: string; items: SeedProduct[] }[] = [
 
 export async function seed(): Promise<{ categories: number; products: number }> {
   // FK-safe reset — repeatable: seed can run any number of times.
+  // pg_advisory_lock serializes concurrent seeders (vitest runs suites in
+  // parallel workers against the same test database).
+  await prisma.$executeRawUnsafe(`SELECT pg_advisory_lock(918273645)`);
+  try {
+    await seedInner();
+  } finally {
+    await prisma.$executeRawUnsafe(`SELECT pg_advisory_unlock(918273645)`);
+  }
+  return { categories: CATEGORIES.length, products: PRODUCTS.reduce((n, g) => n + g.items.length, 0) };
+}
+
+async function seedInner(): Promise<void> {
   await prisma.productSpecification.deleteMany();
   await prisma.productImage.deleteMany();
   await prisma.product.deleteMany();
@@ -405,7 +417,6 @@ export async function seed(): Promise<{ categories: number; products: number }> 
     });
   }
 
-  let count = 0;
   for (const group of PRODUCTS) {
     const category = await prisma.category.findUnique({ where: { slug: group.category } });
     if (!category) throw new Error(`seed: missing category ${group.category}`);
@@ -428,10 +439,8 @@ export async function seed(): Promise<{ categories: number; products: number }> 
           specifications: { create: p.specs.map((s) => ({ specKey: s.key, specValue: s.value })) },
         },
       });
-      count += 1;
     }
   }
-  return { categories: CATEGORIES.length, products: count };
 }
 
 async function main() {

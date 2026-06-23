@@ -1,24 +1,20 @@
-import { env } from "./env.js";
+import type { CookieOptions } from "express";
 
 /**
- * Session foundation (Phase 4): hardened cookie configuration only.
- *
- * The session middleware (express-session + a Postgres-backed store) and
- * the auth routes themselves are implemented in the authentication phase —
- * per REQUIREMENTS §11.4: httpOnly, Secure, SameSite, server-side state,
- * rotation at login, logout revocation.
- *
- * Everything below is the contract that implementation must satisfy.
+ * Session cookie contract (REQUIREMENTS §11.4, API_CONTRACT §7):
+ * httpOnly (never readable by JS), secure in production, SameSite=strict
+ * (cookies never cross sites — the CSRF baseline, backed by the double-submit
+ * token for defense in depth), one-week ceiling matching the absolute TTL.
  */
-export const sessionCookieOptions = {
-  /** JavaScript must never read the session cookie. */
+export const sessionCookieOptions = (): CookieOptions => ({
   httpOnly: true,
-  /** Sent over HTTPS only — in production. Local dev runs on http. */
-  secure: env.NODE_ENV === "production",
-  /** CSRF baseline: cookies never cross sites. */
-  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "strict",
   path: "/",
-  maxAge: 1000 * 60 * 60 * 24 * 7, // one week absolute ceiling; idle expiry lands with the session store
-};
+  maxAge: 1000 * 60 * 60 * 24 * 7,
+});
 
-export const SESSION_SECRET = env.SESSION_SECRET;
+export const SESSION_COOKIE_NAME = "heyrah_session";
+export const CSRF_COOKIE_NAME = "heyrah_csrf";
+export const CSRF_HEADER_NAME = "x-csrf-token";
+export const SESSION_SECRET = process.env.SESSION_SECRET ?? "";
