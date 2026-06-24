@@ -1,0 +1,193 @@
+/* Auth + account surfaces — quiet premium: generous whitespace, one card
+   voice, soft blush supporting tone within the teal/gold system. */
+
+.auth-page {
+  max-width: 440px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-4) var(--space-8);
+}
+
+.auth-page--wide {
+  max-width: 880px;
+}
+
+.auth-restoring {
+  color: var(--color-ink-600);
+  text-align: center;
+  padding: var(--space-8) 0;
+}
+
+.auth-card {
+  background: #ffffff;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+}
+
+.auth-card__title {
+  font-size: var(--type-30);
+  margin: 0 0 var(--space-2);
+  color: var(--color-teal-900);
+}
+
+.auth-card__title--sub {
+  font-size: var(--type-20);
+  margin-bottom: var(--space-4);
+}
+
+.auth-card__lede {
+  margin: 0 0 var(--space-5);
+  color: var(--color-ink-600);
+  font-size: var(--type-14);
+}
+
+.auth-card__meta {
+  margin: 0 0 var(--space-4);
+  color: var(--color-ink-600);
+  font-size: var(--type-14);
+}
+
+/* Fields: labels above, hints below, errors beside the input */
+.field {
+  margin-bottom: var(--space-4);
+}
+
+.field label {
+  display: block;
+  font-size: var(--type-14);
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+  color: var(--color-ink-900);
+}
+
+.field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  font-size: var(--type-16);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-50);
+  color: var(--color-ink-900);
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.field input:hover {
+  border-color: var(--color-neutral-400);
+}
+
+.field input:focus-visible {
+  outline: 2px solid var(--color-teal-600);
+  outline-offset: 1px;
+  border-color: var(--color-teal-600);
+}
+
+.field__hint {
+  margin: var(--space-1) 0 0;
+  font-size: var(--type-12);
+  color: var(--color-ink-600);
+}
+
+/* Feedback states */
+.auth-card__error {
+  background: #fbeeed;
+  border: 1px solid #e5c4c0;
+  color: var(--color-danger-dark);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--type-14);
+  margin-bottom: var(--space-4);
+}
+
+.auth-card__success {
+  background: #ecf6ef;
+  border: 1px solid #c4e0cd;
+  color: var(--color-success);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--type-14);
+  margin-bottom: var(--space-4);
+}
+
+/* Primary action — teal, premium restraint */
+.auth-card__submit {
+  width: 100%;
+  padding: 12px var(--space-4);
+  font-size: var(--type-16);
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--color-teal-600);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.auth-card__submit:hover:not(:disabled) {
+  background: var(--color-teal-700);
+}
+
+.auth-card__submit:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.auth-card__submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Secondary action */
+.auth-card__ghost {
+  width: 100%;
+  padding: 11px var(--space-4);
+  font-size: var(--type-16);
+  font-weight: 600;
+  color: var(--color-teal-700);
+  background: transparent;
+  border: 1px solid var(--color-teal-600);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.auth-card__ghost:hover {
+  background: var(--color-teal-100);
+}
+
+.auth-card__switch {
+  margin: var(--space-5) 0 0;
+  font-size: var(--type-14);
+  color: var(--color-ink-600);
+  text-align: center;
+}
+
+.auth-card__switch a {
+  color: var(--color-teal-700);
+  font-weight: 600;
+}
+
+/* Account layout */
+.account-title {
+  font-size: var(--type-36);
+  color: var(--color-teal-900);
+  margin: 0 0 var(--space-6);
+}
+
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (max-width: 480px) {
+  .auth-page {
+    padding-top: var(--space-6);
+  }
+
+  .auth-card {
+    padding: var(--space-5);
+  }
+}
