@@ -24,6 +24,7 @@ model User {
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   sessions Session[]
+  cart     Cart?
 
   @@map("users")
 }
@@ -44,6 +45,41 @@ model Session {
   @@index([userId])
   @@index([expiresAt])
   @@map("sessions")
+}
+
+/// §2.6 carts — exactly one identity: user_id (persistent user cart) XOR
+/// session_token (guest's temporary session cart, keyed by the unauthenticated
+/// session). The XOR is enforced by migration SQL; one active cart per user
+/// via the partial unique index.
+model Cart {
+  id           BigInt     @id @default(autoincrement()) @db.BigInt
+  userId       BigInt?    @unique @map("user_id") @db.BigInt
+  sessionToken String?    @unique @map("session_token") @db.VarChar(64) // sha256 of the guest session token
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user  User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@index([sessionToken])
+  @@map("carts")
+}
+
+/// §2.6 cart_items — one line per product per cart (UNIQUE enforced in SQL);
+/// quantity > 0 (CHECK in SQL). Adding twice merges quantity in the service.
+model CartItem {
+  id        BigInt   @id @default(autoincrement()) @db.BigInt
+  cartId    BigInt   @map("cart_id") @db.BigInt
+  productId BigInt   @map("product_id") @db.BigInt
+  quantity  Int      // CHECK (> 0 AND <= 99) enforced by migration SQL
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId])
+  @@map("cart_items")
 }
 
 /// §2.2 categories
@@ -80,6 +116,7 @@ model Product {
   category       Category               @relation(fields: [categoryId], references: [id])
   images         ProductImage[]
   specifications ProductSpecification[]
+  cartItems      CartItem[]
 
   @@index([categoryId])
   @@index([status, stockQuantity])
