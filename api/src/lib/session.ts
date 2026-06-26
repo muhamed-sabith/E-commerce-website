@@ -106,6 +106,20 @@ export async function rotateSession(
   return token;
 }
 
+/**
+ * True when this (now dead) token was consumed by a login rotation — its
+ * successor session records it in rotated_from. Such a client is about to
+ * receive the new cookie from the login response, so it must NOT be handed
+ * a replacement guest session (that would clobber the login).
+ */
+export async function wasRotatedAway(token: string): Promise<boolean> {
+  const successor = await prisma.session.findFirst({
+    where: { rotatedFrom: hashToken(token) },
+    select: { id: true },
+  });
+  return successor !== null;
+}
+
 /** Logout: server-side revocation — the cookie value is dead on arrival. */
 export async function destroySession(token: string): Promise<void> {
   await prisma.session.deleteMany({ where: { id: hashToken(token) } }).catch(() => undefined);

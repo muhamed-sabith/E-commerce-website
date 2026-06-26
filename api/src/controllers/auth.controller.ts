@@ -1,6 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 import { SESSION_COOKIE_NAME, sessionCookieOptions } from "../config/session.js";
 import { issueCsrfToken } from "../middleware/csrf.js";
+import { hashToken, wasRotatedAway } from "../lib/session.js";
+import { cartOps } from "../services/cart.ops.js";
 import {
   registerSchema,
   loginSchema,
@@ -30,8 +32,17 @@ function readSessionToken(req: Request): string | null {
   return typeof token === "string" && token.length > 0 ? token : null;
 }
 
-function sendUser(res: Response, user: PublicUser): void {
-  res.json({ user });
+function sendUser(
+  res: Response,
+  user: PublicUser,
+  merge_report?: { merged: unknown[]; capped: unknown[]; dropped: unknown[] },
+): void {
+  res.json(merge_report ? { user, merge_report } : { user });
+}
+
+/** sha256 of the raw session cookie — the guest cart key (sessions.id). */
+function hashForMerge(token: string): string {
+  return hashToken(token);
 }
 
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -45,7 +56,15 @@ export async function register(req: Request, res: Response, next: NextFunction):
     const token = await authService.rotateLoginSession(oldToken, BigInt(user.id));
     setSessionCookie(res, token);
     issueCsrfToken(req, res);
-    res.status(201).json({ user });
+
+    // Guest cart merges into the user cart in one transaction (§3) — keyed
+    // by the OLD session's hash, which rotateLoginSession just consumed.
+    const merge_report =
+      oldToken !== null
+        ? await cartOps.mergeGuestCart(hashForMerge(oldToken), BigInt(user.id))
+        : { merged: [], capped: [], dropped: [] };
+
+    res.status(201).json({ user, merge_report });
   } catch (err) {
     next(err);
   }
@@ -60,7 +79,13 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
     const token = await authService.rotateLoginSession(oldToken, BigInt(user.id));
     setSessionCookie(res, token);
     issueCsrfToken(req, res);
-    sendUser(res, user);
+
+    const merge_report =
+      oldToken !== null
+        ? await cartOps.mergeGuestCart(hashForMerge(oldToken), BigInt(user.id))
+        : { merged: [], capped: [], dropped: [] };
+
+    sendUser(res, user, merge_report);
   } catch (err) {
     next(err);
   }
@@ -84,7 +109,8 @@ export async function me(req: Request, res: Response, next: NextFunction): Promi
   try {
     // Contract (API_CONTRACT §1): every visitor — including guests — is
     // issued a session. First contact answers user:null and mints the guest
-    // session + CSRF cookie the SPA needs for future mutations.
+    // session + CSRF cookie the SPA needs for future mutations. Stale-cookie
+    // recovery lives in /auth/csrf only (see there).
     if (!req.session && !readSessionToken(req)) {
       const token = await authService.startSession(null);
       setSessionCookie(res, token);
@@ -115,9 +141,17 @@ export async function me(req: Request, res: Response, next: NextFunction): Promi
  */
 export async function csrf(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    if (!req.session && !readSessionToken(req)) {
-      const token = await authService.startSession(null);
-      setSessionCookie(res, token);
+    // No live session → mint a guest one. A stale cookie (expired, revoked,
+    // DB reset) is replaced too, otherwise the visitor is stuck and cart
+    // calls 401 forever — EXCEPT a cookie a login just rotated away: that
+    // client is receiving its new cookie now, and a replacement here would
+    // race it and sign the user out.
+    if (!req.session) {
+      const stale = readSessionToken(req);
+      if (stale === null || !(await wasRotatedAway(stale))) {
+        const token = await authService.startSession(null);
+        setSessionCookie(res, token);
+      }
     }
     const token = issueCsrfToken(req, res);
     res.json({ csrfToken: token });
