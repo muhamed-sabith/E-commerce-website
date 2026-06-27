@@ -1,8 +1,12 @@
 /**
  * Typed API client foundation. The base URL comes from the environment —
  * never hardcode endpoints in components (ARCHITECTURE §2).
+ *
+ * Cookie-session based: every call sends credentials; mutations echo the
+ * JS-readable CSRF cookie in X-CSRF-Token (double-submit). The web app never
+ * sees or stores the session cookie value.
  */
-const API_BASE_URL: string =
+export const API_BASE_URL: string =
   import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
 interface HealthResponse {
@@ -12,18 +16,87 @@ interface HealthResponse {
   timestamp: string;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
-  if (!res.ok) {
-    throw new Error(`API ${res.status} on ${path}`);
+/** Error envelope surfaced to the UI (API_CONTRACT §6). */
+export class ApiRequestError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
   }
-  return (await res.json()) as T;
+}
+
+/** The CSRF cookie is JS-readable by design (double-submit). */
+function readCsrfCookie(): string {
+  const match = document.cookie.match(/(?:^|;\s*)heyrah_csrf=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+export async function apiRequest<T>(
+  path: string,
+  options: { method?: string; body?: unknown } = {},
+): Promise<T> {
+  const method = options.method ?? "GET";
+  const mutating = method !== "GET";
+
+  // A mutation can fire before the load-time bootstrap has set the CSRF
+  // cookie (fast submit on first paint). Bootstrap first rather than send
+  // an empty token.
+  if (mutating && !readCsrfCookie()) {
+    await ensureCsrf();
+  }
+
+  const send = () => {
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (options.body !== undefined) {
+      headers["Content-Type"] = "application/json";
+    }
+    if (mutating) {
+      headers["X-CSRF-Token"] = readCsrfCookie();
+    }
+    return fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers,
+      credentials: "include",
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    });
+  };
+
+  let res = await send();
+
+  // One re-bootstrap + retry if the token was stale (e.g. cookie rotated
+  // by a concurrent bootstrap). Never loops.
+  if (mutating && res.status === 403) {
+    const peek = (await res.clone().json().catch(() => null)) as
+      | { error?: { code?: string } }
+      | null;
+    if (peek?.error?.code === "csrf_failed") {
+      await ensureCsrf();
+      res = await send();
+    }
+  }
+
+  const data = (await res.json().catch(() => null)) as
+    | (T & { error?: { code: string; message: string } })
+    | null;
+
+  if (!res.ok) {
+    const code = data?.error?.code ?? "internal_error";
+    const message = data?.error?.message ?? "Something went wrong. Please try again.";
+    throw new ApiRequestError(res.status, code, message);
+  }
+  return data as T;
+}
+
+/** Bootstrap: mint guest session + CSRF token before first mutation. */
+export async function ensureCsrf(): Promise<void> {
+  await fetch(`${API_BASE_URL}/api/v1/auth/csrf`, { credentials: "include" }).catch(
+    () => undefined,
+  );
 }
 
 export const apiClient = {
-  getHealth: () => request<HealthResponse>("/healthz"),
+  getHealth: () => apiRequest<HealthResponse>("/healthz"),
 };

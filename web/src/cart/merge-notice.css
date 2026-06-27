@@ -1,0 +1,90 @@
+/* Post-sign-in bag notice — ivory card, blush hairline, one gold edge.
+   Lives in the shell so it shows wherever sign-in lands. */
+
+.merge-notice {
+  max-width: 1120px;
+  margin: var(--space-5) auto 0;
+  box-sizing: border-box;
+  background: var(--color-ivory-50);
+  border: 1px solid var(--color-blush-200);
+  border-left: 3px solid var(--color-gold-500);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+
+.merge-notice-wrap {
+  padding: 0 var(--space-5);
+}
+
+@media (max-width: 520px) {
+  .merge-notice-wrap {
+    padding: 0 var(--space-4);
+  }
+}
+
+.merge-notice__title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--type-20);
+  color: var(--color-teal-900);
+  margin: 0 0 var(--space-2);
+}
+
+.merge-notice__title:focus-visible {
+  outline-offset: 4px;
+}
+
+.merge-notice__group p {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: var(--type-14);
+  color: var(--color-ink-600);
+}
+
+.merge-notice__group ul {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--type-14);
+  color: var(--color-ink-900);
+}
+
+.merge-notice__qty {
+  color: var(--color-ink-600);
+  font-variant-numeric: tabular-nums;
+}
+
+.merge-notice__actions {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+}
+
+.merge-notice__link {
+  color: var(--color-teal-700);
+  font-weight: 600;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  text-underline-offset: 4px;
+}
+
+.merge-notice__dismiss {
+  background: none;
+  border: 1px solid var(--color-blush-200);
+  border-radius: 999px;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  font: inherit;
+  font-size: var(--type-14);
+  color: var(--color-ink-600);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.merge-notice__dismiss:hover {
+  border-color: var(--color-teal-600);
+  color: var(--color-teal-700);
+}
