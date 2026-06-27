@@ -1,15 +1,20 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ApiRequestError, authApi } from "../api/auth";
+import { hasMergeNews } from "../api/cart";
 import { useAuth } from "../auth/AuthContext";
+import { useCart } from "../cart/CartContext";
 import "./auth.css";
 
 /**
  * Sign in (API_CONTRACT §1, REQUIREMENTS §7). One column, labels above,
  * generic failure copy (no user enumeration), typed data preserved on error.
+ * A guest bag merges server-side on sign-in; the merge_report is surfaced
+ * by the shell's MergeNotice and the bag reloads with the new identity.
  */
 export function LoginPage() {
   const { refresh } = useAuth();
+  const { showMergeReport } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
@@ -27,7 +32,8 @@ export function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await authApi.login({ email, password });
+      const result = await authApi.login({ email, password });
+      showMergeReport(hasMergeNews(result.merge_report) ? result.merge_report : null);
       await refresh();
       navigate(from, { replace: true });
     } catch (err) {

@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { catalogApi } from "../api/catalog";
 import type { ProductDetail as ProductDetailData } from "../api/catalog";
+import { AddToBagButton } from "../cart/AddToBagButton";
 import { formatINR } from "../lib/format";
 import "./product-detail.css";
 
@@ -103,7 +104,13 @@ export function ProductDetailPage() {
             <p className="pdp__sku">SKU {p.sku}</p>
 
             <p className="pdp__price price">
-              {discounted ? <span className="price-strike">{formatINR(p.price.amount)}</span> : null}
+              {discounted ? (
+                <>
+                  <span className="sr-only">Was </span>
+                  <s className="price-strike">{formatINR(p.price.amount)}</s>
+                  <span className="sr-only">, now </span>
+                </>
+              ) : null}
               <span className="pdp__final">{formatINR(p.finalPrice.amount)}</span>
               {p.discount.type !== "none" ? (
                 <span className="pdp__badge">
@@ -118,9 +125,12 @@ export function ProductDetailPage() {
               {outOfStock ? "Out of stock" : "In stock"}
             </p>
 
-            <button type="button" className="pdp__cta" disabled={outOfStock}>
-              {outOfStock ? "Unavailable" : "Add to bag"}
-            </button>
+            <AddToBagButton
+              key={p.id}
+              productId={p.id}
+              productName={p.name}
+              available={!outOfStock}
+            />
 
             <div className="pdp__description">
               <h2>Description</h2>

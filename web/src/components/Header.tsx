@@ -1,15 +1,21 @@
 import { useMemo } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { useCart } from "../cart/CartContext";
+import { MergeNotice } from "../cart/MergeNotice";
 import "./header.css";
 
 /**
  * Storefront shell: brand header with category navigation + search,
  * routed content below. Category links come from the live API; the account
- * control reflects the session state (server-restored, never guessed).
+ * control reflects the session state (server-restored, never guessed). The
+ * bag count is the server's itemCount — never a local tally.
  */
 export function Header({ categories }: { categories: { slug: string; name: string }[] }) {
   const { user, restoring, logout } = useAuth();
+  const { cart, announcement } = useCart();
+  // No number until the server has answered: never show a guessed count.
+  const count = cart ? cart.itemCount : null;
 
   const account = useMemo(() => {
     if (restoring) {
@@ -86,14 +92,33 @@ export function Header({ categories }: { categories: { slug: string; name: strin
 
           <nav aria-label="Account" className="site-header__account-nav">
             {account}
+            <NavLink
+              to="/cart"
+              className={({ isActive }) =>
+                isActive ? "site-header__bag is-active" : "site-header__bag"
+              }
+              aria-label={
+                count === null ? "Bag" : `Bag, ${count} ${count === 1 ? "item" : "items"}`
+              }
+              data-testid="header-bag"
+            >
+              <span aria-hidden="true">Bag</span>
+              {count === null ? null : (
+                <span className="site-header__bag-count" aria-hidden="true" data-testid="bag-count">
+                  {count}
+                </span>
+              )}
+            </NavLink>
           </nav>
         </div>
       </header>
+      {/* Shared polite live region: present before any cart change so every
+          add/update/remove is announced (a11y skill §6). */}
+      <p className="sr-only" aria-live="polite" aria-atomic="true" data-testid="cart-announcer">
+        {announcement}
+      </p>
+      <MergeNotice />
       <Outlet />
     </>
   );
-}
-
-export function useCategoryLinks(activeCategories: { slug: string; name: string }[]) {
-  return useMemo(() => activeCategories, [activeCategories]);
 }

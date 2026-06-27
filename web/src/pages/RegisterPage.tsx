@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ApiRequestError, authApi } from "../api/auth";
+import { hasMergeNews } from "../api/cart";
 import { useAuth } from "../auth/AuthContext";
+import { useCart } from "../cart/CartContext";
 import "./auth.css";
 
 /**
@@ -11,6 +13,7 @@ import "./auth.css";
  */
 export function RegisterPage() {
   const { refresh } = useAuth();
+  const { showMergeReport } = useCart();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -23,7 +26,8 @@ export function RegisterPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await authApi.register({ name, email, password });
+      const result = await authApi.register({ name, email, password });
+      showMergeReport(hasMergeNews(result.merge_report) ? result.merge_report : null);
       await refresh();
       navigate("/products", { replace: true });
     } catch (err) {

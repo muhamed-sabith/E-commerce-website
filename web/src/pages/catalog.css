@@ -83,6 +83,10 @@
 }
 
 .catalog__price-row input {
+  /* Native number inputs have a ~200px intrinsic width; let them shrink. */
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border: 1px solid var(--color-neutral-200);
   border-radius: var(--radius-sm);
   padding: var(--space-2) var(--space-3);
@@ -144,7 +148,7 @@
 
 @media (max-width: 980px) {
   .catalog__layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .catalog__filters {
@@ -160,7 +164,11 @@
 
 @media (max-width: 560px) {
   .catalog__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .catalog__toolbar {
+    flex-wrap: wrap;
   }
 }
 
