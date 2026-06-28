@@ -6,3 +6,6 @@ import { afterEach } from "vitest";
 afterEach(() => {
   cleanup();
 });
+
+// jsdom doesn't implement scrolling; the shell scrolls to top on navigation.
+window.scrollTo = (() => undefined) as typeof window.scrollTo;

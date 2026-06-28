@@ -20,6 +20,27 @@ vi.mock("./api/catalog", () => ({
   },
 }));
 
+// The shell mounts CartProvider; keep it on an empty server cart here.
+vi.mock("./api/cart", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./api/cart")>();
+  const empty = {
+    items: [],
+    itemCount: 0,
+    subtotal: { amount: "0.00" },
+    discountTotal: { amount: "0.00" },
+    total: { amount: "0.00" },
+  };
+  return {
+    ...actual,
+    cartApi: {
+      get: vi.fn().mockResolvedValue(empty),
+      addItem: vi.fn(),
+      updateItem: vi.fn(),
+      removeItem: vi.fn(),
+    },
+  };
+});
+
 const authMocks = vi.hoisted(() => ({
   me: vi.fn(),
   login: vi.fn(),
