@@ -46,12 +46,24 @@
 - Fixes found in testing: stale-session recovery via `/auth/csrf`, login rotation race, catalog duplicate price, 375px catalog overflow
 - Verified: API 74/74, web Vitest 24/24, Playwright 20/20; typecheck, lint, build clean
 
+## Phase 8 — Wishlist + Address Management
+- Migration `wishlist_addresses`: `wishlists` (composite PK user+product, no price snapshot), `addresses` (schema §2.8 fields); partial unique index = one default per user; country-code + non-blank CHECKs
+- Wishlist API (USER-only): `GET /wishlist`, `POST /wishlist/items`, `DELETE /wishlist/items/:id`; idempotent add; live price/final price/availability/purchasable; hidden products 404 on add, flagged `unavailable` if saved earlier
+- Address API (USER-only): `GET/POST /addresses`, `PATCH/DELETE /addresses/:id`, `POST /addresses/:id/default`; strict Zod (no mass assignment), phone/postal/ISO country rules (IN PIN = 6 digits)
+- Default rules: first address auto-default; set-default clears previous in one transaction (user row lock); deleting the default with others requires `new_default_id` (`409 default_reassignment_required`); deleting the only address allowed
+- Foreign ids → 404 on every route; CSRF on mutations; `Cache-Control: private, no-store`
+- Frontend: Wishlist page, Save toggle on product detail + catalog cards (guest → sign-in), header Wishlist link, address book at `/account/addresses` (form with inline validation, default badge, delete dialog with replacement choice), account page links
+- Fixes found in testing: Phase 7 bag image path (`/assets/`), signed-in header wrapping at 1280/1440px, header labels breaking at 375px, Arial fallback on account buttons
+- Verified: API 115/115, web Vitest 46/46, Playwright 33/33; typecheck (api, web, root), lint, build clean; migrations up to date on dev + test
+
 ## Current next phase
-**Phase 8 — Wishlist + Address Management**
+**Phase 8 — checkout (planned next)** — guest + user checkout flow with server-side totals
 
 ## Remaining issues / notes
-- Phase 7 work is not yet committed or pushed
+- Phase 8 work is not yet committed or pushed
 - Seed product images don't load; branded placeholders show everywhere
+- Address form offers 8 countries (API accepts any ISO alpha-2); postal format strict only for India
+- Mobile header is tall at 375px (~340px) — no collapsible menu yet
 - Auth rate limit (30/min locally) can fail back-to-back full e2e runs within 60s
 - Local Postgres must be started detached (`Start-Process pg_ctl …`) or it crash-loops
 - Accessibility verified by automation + keyboard e2e only; no screen-reader pass yet
