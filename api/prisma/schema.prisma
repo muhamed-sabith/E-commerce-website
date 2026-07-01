@@ -23,8 +23,10 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  sessions Session[]
-  cart     Cart?
+  sessions      Session[]
+  cart          Cart?
+  wishlistItems WishlistItem[]
+  addresses     Address[]
 
   @@map("users")
 }
@@ -61,7 +63,7 @@ model Cart {
   user  User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
   items CartItem[]
 
-  @@index([sessionToken])
+  // session_token lookups use the unique index above; no second index.
   @@map("carts")
 }
 
@@ -80,6 +82,44 @@ model CartItem {
 
   @@unique([cartId, productId])
   @@map("cart_items")
+}
+
+/// §2.7 wishlists — composite PK (user_id, product_id): a product is saved
+/// at most once per user, so add is idempotent by construction. No price
+/// snapshot — the wishlist always reads live catalog state.
+model WishlistItem {
+  userId    BigInt   @map("user_id") @db.BigInt
+  productId BigInt   @map("product_id") @db.BigInt
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([userId, productId])
+  @@map("wishlists")
+}
+
+/// §2.8 addresses — user-owned. One default per user is enforced by a
+/// partial unique index (migration SQL) in addition to the service rules.
+model Address {
+  id           BigInt   @id @default(autoincrement()) @db.BigInt
+  userId       BigInt   @map("user_id") @db.BigInt
+  receiverName String   @map("receiver_name") @db.VarChar(120)
+  phone        String   @db.VarChar(24) // format validated app-side
+  line1        String   @db.VarChar(120)
+  line2        String?  @db.VarChar(120)
+  city         String   @db.VarChar(80)
+  state        String   @db.VarChar(80)
+  postalCode   String   @map("postal_code") @db.VarChar(16)
+  countryCode  String   @map("country_code") @db.Char(2) // ISO 3166-1 alpha-2
+  isDefault    Boolean  @default(false) @map("is_default")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("addresses")
 }
 
 /// §2.2 categories
@@ -117,6 +157,7 @@ model Product {
   images         ProductImage[]
   specifications ProductSpecification[]
   cartItems      CartItem[]
+  wishlistItems  WishlistItem[]
 
   @@index([categoryId])
   @@index([status, stockQuantity])

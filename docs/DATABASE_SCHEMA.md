@@ -97,7 +97,9 @@ Composite PK (user_id FK, product_id FK), created_at. Idempotent add; no stock r
 | city / state | VARCHAR(80) / VARCHAR(80) | |
 | postal_code | VARCHAR(16) | |
 | country_code | CHAR(2) | ISO 3166-1 alpha-2 |
-| is_default | BOOLEAN | app enforces: one default per user, delete rules per REQUIREMENTS §2.12 |
+| is_default | BOOLEAN | app enforces: one default per user, delete rules per REQUIREMENTS §2.12; DB backstop: partial UNIQUE (user_id) WHERE is_default |
+
+Implemented DB checks (Phase 8 migration): `country_code ~ '^[A-Z]{2}$'`; required text columns non-blank. Wishlists and addresses cascade-delete with their user.
 | created_at / updated_at | TIMESTAMPTZ | |
 
 ### 2.9 orders
