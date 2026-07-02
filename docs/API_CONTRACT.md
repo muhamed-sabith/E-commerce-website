@@ -66,6 +66,13 @@ Stock is validated during the merge — a merge can never oversell.
 | PATCH | `/addresses/{id}` | edit |
 | DELETE | `/addresses/{id}` | delete; default-reassignment rules enforced |
 | POST | `/addresses/{id}/default` | set default |
+
+**Wishlist + address book (implemented, Phase 8):**
+
+- Wishlist item id = the saved product's id (composite key user + product). `POST /wishlist/items` accepts only `{product_id}`; unknown/inactive/archived products → `404 unknown_resource`; repeat adds are idempotent. Every response is the full list `{items:[…]}` with **live** `price`, `finalPrice`, `availability` (`in_stock` / `out_of_stock` / `unavailable`) and `purchasable` — no price snapshot. Unavailable items stay listed with an empty `slug` (no public page).
+- Address bodies: `receiver_name, phone, line1, line2?, city, state, postal_code, country_code` — strict (unknown keys such as `user_id`, `is_default` → `400`). Text trimmed and whitespace-collapsed; control characters rejected; phone 7–15 digits (`+ - ( )` and spaces allowed); `country_code` ISO alpha-2 (uppercased); postal code 3–16 letters/digits/space/`-`, **6 digits when `country_code = IN`**.
+- Default rules: first address becomes default; exactly one default whenever any address exists (also a partial unique index); `POST /addresses/{id}/default` clears the previous default in the same transaction. `DELETE` of a non-default or the only address succeeds; deleting the default while others exist requires `?new_default_id=` (another owned address) — otherwise `409 default_reassignment_required`.
+- Foreign ids on any wishlist/address route → `404 unknown_resource` (no existence leak). Responses are `Cache-Control: private, no-store`.
 | POST | `/checkout/preview` | **authenticated only** — authoritative totals + shipping + per-line validation, pre-order |
 | POST | `/checkout` | **authenticated only — the authoritative order creation endpoint.** Re-validates every line, deducts stock atomically (any failure rolls back the entire order — no partial orders), snapshots line prices, creates the order with `payment_status = PENDING_PAYMENT` |
 | GET | `/orders` | own orders, newest first |
@@ -138,6 +145,7 @@ Rules:
 | `unknown_resource` | 404 | nonexistent id/slug; also used instead of 403 for foreign user resources |
 | `stock_shortage` | 409 | checkout/cart line lost the race; `details` names lines |
 | `cart_stale` | 409 | inactive/archived/removed products in cart |
+| `default_reassignment_required` | 409 | deleting the default address while others exist without naming `new_default_id` |
 | `rate_limited` | 429 | back off; `Retry-After` header |
 
 Production responses never carry stack traces or SQL (§12.7).
