@@ -113,7 +113,10 @@ export function toCartLine(row: CartLineRow): CartLine {
       name: row.name,
       slug: row.slug,
       sku: row.sku,
-      image: row.imagePath ? { src: row.imagePath, alt: row.imageAlt ?? row.name } : null,
+      // Same public path shape as the catalog (catalog.service toListItem).
+      image: row.imagePath
+        ? { src: `/assets/${row.imagePath}`, alt: row.imageAlt ?? row.name }
+        : null,
     },
     quantity: row.quantity,
     price: money(row.price),
