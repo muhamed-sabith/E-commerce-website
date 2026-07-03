@@ -22,6 +22,8 @@ export class ApiRequestError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
+    /** Field-level issues on validation_failed (API_CONTRACT §6). */
+    readonly details?: unknown,
   ) {
     super(message);
     this.name = "ApiRequestError";
@@ -79,13 +81,13 @@ export async function apiRequest<T>(
   }
 
   const data = (await res.json().catch(() => null)) as
-    | (T & { error?: { code: string; message: string } })
+    | (T & { error?: { code: string; message: string; details?: unknown } })
     | null;
 
   if (!res.ok) {
     const code = data?.error?.code ?? "internal_error";
     const message = data?.error?.message ?? "Something went wrong. Please try again.";
-    throw new ApiRequestError(res.status, code, message);
+    throw new ApiRequestError(res.status, code, message, data?.error?.details);
   }
   return data as T;
 }
