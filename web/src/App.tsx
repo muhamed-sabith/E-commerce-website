@@ -6,6 +6,9 @@ import { AuthProvider } from "./auth/AuthContext";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { CartProvider } from "./cart/CartContext";
 import { CartPage } from "./pages/CartPage";
+import { WishlistProvider } from "./wishlist/WishlistContext";
+import { WishlistPage } from "./pages/WishlistPage";
+import { AddressesPage } from "./pages/AddressesPage";
 import { Header } from "./components/Header";
 import { CatalogPage } from "./pages/CatalogPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
@@ -46,6 +49,7 @@ export function App() {
   return (
     <AuthProvider>
       <CartProvider>
+      <WishlistProvider>
       <Routes>
         <Route element={<Header categories={categories} />}>
           <Route path="/" element={<CatalogPage heading="The Collection" />} />
@@ -58,6 +62,22 @@ export function App() {
           />
           <Route path="/product/:slug" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
+          <Route
+            path="/wishlist"
+            element={
+              <ProtectedRoute>
+                <WishlistPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/account/addresses"
+            element={
+              <ProtectedRoute>
+                <AddressesPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route
@@ -71,6 +91,7 @@ export function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
+      </WishlistProvider>
       </CartProvider>
     </AuthProvider>
   );

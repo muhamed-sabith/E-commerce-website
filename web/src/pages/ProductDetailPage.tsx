@@ -4,6 +4,7 @@ import { catalogApi } from "../api/catalog";
 import type { ProductDetail as ProductDetailData } from "../api/catalog";
 import { AddToBagButton } from "../cart/AddToBagButton";
 import { formatINR } from "../lib/format";
+import { SaveToggle } from "../wishlist/SaveToggle";
 import "./product-detail.css";
 
 type LoadState =
@@ -125,12 +126,15 @@ export function ProductDetailPage() {
               {outOfStock ? "Out of stock" : "In stock"}
             </p>
 
-            <AddToBagButton
-              key={p.id}
-              productId={p.id}
-              productName={p.name}
-              available={!outOfStock}
-            />
+            <div className="pdp__actions">
+              <AddToBagButton
+                key={p.id}
+                productId={p.id}
+                productName={p.name}
+                available={!outOfStock}
+              />
+              <SaveToggle productId={p.id} productName={p.name} />
+            </div>
 
             <div className="pdp__description">
               <h2>Description</h2>

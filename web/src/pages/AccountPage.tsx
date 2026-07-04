@@ -170,6 +170,26 @@ export function AccountPage() {
           </form>
         </section>
 
+        <section className="auth-card" aria-labelledby="shortcuts-heading">
+          <h2 className="auth-card__title auth-card__title--sub" id="shortcuts-heading">
+            Your pieces and places
+          </h2>
+          <ul className="account-links">
+            <li>
+              <Link to="/wishlist" className="account-links__item">
+                <span className="account-links__label">Wishlist</span>
+                <span className="account-links__meta">Saved pieces, with today's price</span>
+              </Link>
+            </li>
+            <li>
+              <Link to="/account/addresses" className="account-links__item">
+                <span className="account-links__label">Addresses</span>
+                <span className="account-links__meta">Delivery addresses and your default</span>
+              </Link>
+            </li>
+          </ul>
+        </section>
+
         <section className="auth-card auth-card--actions" aria-labelledby="session-heading">
           <h2 className="auth-card__title auth-card__title--sub" id="session-heading">
             Session

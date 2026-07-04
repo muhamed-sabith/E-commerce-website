@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { AddToBagButton } from "../cart/AddToBagButton";
 import { formatINR } from "../lib/format";
+import { SaveToggle } from "../wishlist/SaveToggle";
 import type { ProductListItem } from "../api/catalog";
 import "./product-card.css";
 
@@ -15,6 +16,9 @@ export function ProductCard({ product }: { product: ProductListItem }) {
 
   return (
     <article className="product-card">
+      <div className="product-card__save">
+        <SaveToggle productId={product.id} productName={product.name} variant="compact" />
+      </div>
       <Link to={`/product/${product.slug}`} className="product-card__link">
         <div className="product-card__media">
           {product.image ? (

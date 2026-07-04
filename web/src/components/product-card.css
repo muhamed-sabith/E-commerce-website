@@ -1,4 +1,5 @@
 .product-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   background: #fff;
@@ -32,6 +33,15 @@
 
 .product-card__actions {
   padding: 0 var(--space-4) var(--space-4);
+}
+
+/* Save toggle rides the image corner; a sibling of the link (no nested
+   interactive elements), positioned over it. */
+.product-card__save {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 1;
 }
 
 .product-card__media {

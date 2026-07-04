@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useCart } from "../cart/CartContext";
 import { MergeNotice } from "../cart/MergeNotice";
+import { useWishlist } from "../wishlist/WishlistContext";
 import "./header.css";
 
 /**
@@ -14,6 +15,7 @@ import "./header.css";
 export function Header({ categories }: { categories: { slug: string; name: string }[] }) {
   const { user, restoring, logout } = useAuth();
   const { cart, announcement } = useCart();
+  const { announcement: wishlistAnnouncement } = useWishlist();
   // No number until the server has answered: never show a guessed count.
   const count = cart ? cart.itemCount : null;
 
@@ -68,6 +70,7 @@ export function Header({ categories }: { categories: { slug: string; name: strin
             ))}
           </nav>
 
+          <div className="site-header__tools">
           <form
             className="site-header__search"
             role="search"
@@ -93,6 +96,15 @@ export function Header({ categories }: { categories: { slug: string; name: strin
           <nav aria-label="Account" className="site-header__account-nav">
             {account}
             <NavLink
+              to="/wishlist"
+              className={({ isActive }) =>
+                isActive ? "site-header__link is-active" : "site-header__link"
+              }
+              data-testid="header-wishlist"
+            >
+              Wishlist
+            </NavLink>
+            <NavLink
               to="/cart"
               className={({ isActive }) =>
                 isActive ? "site-header__bag is-active" : "site-header__bag"
@@ -110,12 +122,16 @@ export function Header({ categories }: { categories: { slug: string; name: strin
               )}
             </NavLink>
           </nav>
+          </div>
         </div>
       </header>
       {/* Shared polite live region: present before any cart change so every
           add/update/remove is announced (a11y skill §6). */}
       <p className="sr-only" aria-live="polite" aria-atomic="true" data-testid="cart-announcer">
         {announcement}
+      </p>
+      <p className="sr-only" aria-live="polite" aria-atomic="true" data-testid="wishlist-announcer">
+        {wishlistAnnouncement}
       </p>
       <MergeNotice />
       <Outlet />
