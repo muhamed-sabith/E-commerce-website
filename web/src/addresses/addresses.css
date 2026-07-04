@@ -1,0 +1,461 @@
+/* Address book — practical, calm: ivory cards on the light page, blush
+   hairlines, one gold edge + badge for the default, teal actions. */
+
+.addr-page {
+  padding-bottom: var(--space-8);
+}
+
+.addr-page__inner {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+}
+
+.addr-page__crumbs {
+  padding-top: var(--space-6);
+  font-size: var(--type-14);
+  color: var(--color-ink-600);
+}
+
+.addr-page__crumbs a {
+  color: var(--color-teal-700);
+  text-underline-offset: 3px;
+}
+
+.addr-page__title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--type-36);
+  color: var(--color-teal-900);
+  margin: var(--space-3) 0 var(--space-2);
+}
+
+.addr-page__title:focus {
+  outline: none;
+}
+
+.addr-page__status {
+  min-height: 1.5em;
+  margin: 0 0 var(--space-4);
+  font-size: var(--type-14);
+  color: var(--color-success);
+}
+
+.addr-page__toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-5);
+}
+
+.addr-page__count {
+  margin: 0;
+  color: var(--color-ink-600);
+}
+
+.addr-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-5);
+}
+
+.addr-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: #fff;
+  border: 1px solid var(--color-blush-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+
+.addr-card[aria-busy="true"] {
+  opacity: 0.6;
+}
+
+.addr-card.is-default {
+  background: var(--color-ivory-50);
+  border-left: 3px solid var(--color-gold-500);
+}
+
+.addr-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.addr-card__name {
+  margin: 0;
+  font-size: var(--type-18);
+  font-weight: 600;
+  color: var(--color-ink-900);
+  overflow-wrap: anywhere;
+}
+
+.addr-card__badge {
+  flex-shrink: 0;
+  border: 1px solid var(--color-gold-500);
+  color: var(--color-teal-900);
+  background: #fff;
+  border-radius: 999px;
+  font-size: var(--type-12);
+  font-weight: 600;
+  padding: 2px var(--space-3);
+}
+
+.addr-card__lines {
+  font-style: normal;
+  font-size: var(--type-14);
+  line-height: 1.6;
+  color: var(--color-ink-900);
+  overflow-wrap: anywhere;
+}
+
+.addr-card__phone {
+  color: var(--color-ink-600);
+  font-variant-numeric: tabular-nums;
+}
+
+.addr-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin-top: auto;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-blush-100);
+}
+
+.addr-card__action {
+  background: none;
+  border: none;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  font: inherit;
+  font-size: var(--type-14);
+  font-weight: 600;
+  color: var(--color-teal-700);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--color-blush-200);
+  text-underline-offset: 4px;
+}
+
+.addr-card__action:hover:not([aria-disabled="true"]) {
+  text-decoration-color: currentColor;
+}
+
+.addr-card__action--danger {
+  color: var(--color-danger-dark);
+  margin-left: auto;
+}
+
+.addr-card__error {
+  margin: 0;
+  font-size: var(--type-14);
+  color: var(--color-danger-dark);
+}
+
+/* ---------- buttons ---------- */
+
+.addr-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 var(--space-6);
+  background: var(--color-teal-600);
+  color: #fff;
+  border: 1px solid var(--color-teal-600);
+  border-radius: 999px;
+  font: inherit;
+  font-size: var(--type-16);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.addr-button:hover:not([aria-disabled="true"]) {
+  background: var(--color-teal-700);
+}
+
+.addr-button[aria-disabled="true"] {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.addr-button--ghost {
+  background: transparent;
+  color: var(--color-teal-700);
+  border-color: var(--color-blush-200);
+}
+
+.addr-button--ghost:hover:not([aria-disabled="true"]) {
+  background: var(--color-blush-50);
+}
+
+.addr-button--danger {
+  background: var(--color-danger-dark);
+  border-color: var(--color-danger-dark);
+}
+
+.addr-button--danger:hover:not([aria-disabled="true"]) {
+  background: var(--color-danger);
+}
+
+/* ---------- form ---------- */
+
+.addr-form {
+  background: var(--color-ivory-50);
+  border: 1px solid var(--color-blush-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+}
+
+.addr-form__title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--type-24);
+  color: var(--color-teal-900);
+  margin: 0 0 var(--space-5);
+}
+
+.addr-form__title:focus {
+  outline: none;
+}
+
+.addr-form__title:focus-visible {
+  outline: 2px solid var(--color-teal-600);
+  outline-offset: 4px;
+}
+
+.addr-form__alert {
+  background: var(--color-blush-50);
+  border-left: 2px solid var(--color-danger);
+  color: var(--color-danger-dark);
+  padding: var(--space-3) var(--space-4);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: var(--type-14);
+  margin-bottom: var(--space-4);
+}
+
+.addr-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-5);
+}
+
+.addr-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.addr-field--wide {
+  grid-column: 1 / -1;
+}
+
+.addr-field label {
+  font-size: var(--type-14);
+  font-weight: 600;
+  color: var(--color-ink-900);
+}
+
+.addr-field__req {
+  font-weight: 400;
+  color: var(--color-ink-600);
+}
+
+.addr-field input,
+.addr-field select {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: var(--type-16);
+  color: var(--color-ink-900);
+  background: #fff;
+  border: 1px solid var(--color-blush-200);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.addr-field input:hover,
+.addr-field select:hover {
+  border-color: var(--color-neutral-400);
+}
+
+.addr-field input:focus-visible,
+.addr-field select:focus-visible {
+  outline: 2px solid var(--color-teal-600);
+  outline-offset: 1px;
+  border-color: var(--color-teal-600);
+}
+
+.addr-field input[aria-invalid="true"],
+.addr-field select[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.addr-field__hint {
+  margin: 0;
+  font-size: var(--type-12);
+  color: var(--color-ink-600);
+}
+
+.addr-field__error {
+  margin: 0;
+  font-size: var(--type-14);
+  color: var(--color-danger-dark);
+}
+
+.addr-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+/* ---------- dialog ---------- */
+
+.addr-dialog {
+  width: min(460px, calc(100vw - 2 * var(--space-4)));
+  box-sizing: border-box;
+  border: 1px solid var(--color-blush-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  background: #fff;
+  color: var(--color-ink-900);
+}
+
+.addr-dialog::backdrop {
+  background: rgba(13, 59, 63, 0.35);
+}
+
+.addr-dialog__title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--type-24);
+  color: var(--color-teal-900);
+  margin: 0 0 var(--space-3);
+}
+
+.addr-dialog__copy {
+  margin: 0 0 var(--space-4);
+  color: var(--color-ink-600);
+  overflow-wrap: anywhere;
+}
+
+.addr-dialog__choices {
+  border: 1px solid var(--color-blush-200);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin: 0 0 var(--space-4);
+}
+
+.addr-dialog__choices legend {
+  font-size: var(--type-14);
+  font-weight: 600;
+  padding: 0 var(--space-1);
+}
+
+.addr-dialog__choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  font-size: var(--type-14);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.addr-dialog__choice input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--color-teal-600);
+}
+
+.addr-dialog__error {
+  margin: 0 0 var(--space-3);
+  color: var(--color-danger-dark);
+  font-size: var(--type-14);
+}
+
+.addr-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+/* ---------- states ---------- */
+
+.addr-page__empty,
+.addr-page__state {
+  background: var(--color-ivory-50);
+  border: 1px solid var(--color-blush-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-7) var(--space-5);
+  text-align: center;
+}
+
+.addr-page__empty-lede {
+  font-family: var(--font-display);
+  font-size: var(--type-24);
+  color: var(--color-teal-900);
+  margin: 0 0 var(--space-2);
+}
+
+.addr-page__empty p,
+.addr-page__state p {
+  color: var(--color-ink-600);
+  margin: 0 0 var(--space-5);
+}
+
+.addr-page__skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-5);
+}
+
+.addr-page__skeleton div {
+  height: 220px;
+  border-radius: var(--radius-lg);
+  background: var(--color-blush-50);
+}
+
+@media (max-width: 560px) {
+  .addr-page__inner {
+    padding: 0 var(--space-4);
+  }
+
+  .addr-page__title {
+    font-size: var(--type-30);
+  }
+
+  .addr-form {
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .addr-form__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .addr-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .addr-form__actions .addr-button,
+  .addr-page__toolbar .addr-button {
+    flex: 1 1 auto;
+  }
+}
