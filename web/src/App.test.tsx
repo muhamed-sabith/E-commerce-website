@@ -20,6 +20,19 @@ vi.mock("./api/catalog", () => ({
   },
 }));
 
+// The shell mounts WishlistProvider; signed-in users get an empty wishlist.
+vi.mock("./api/customer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./api/customer")>();
+  return {
+    ...actual,
+    wishlistApi: {
+      get: vi.fn().mockResolvedValue({ items: [] }),
+      add: vi.fn(),
+      remove: vi.fn(),
+    },
+  };
+});
+
 // The shell mounts CartProvider; keep it on an empty server cart here.
 vi.mock("./api/cart", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./api/cart")>();

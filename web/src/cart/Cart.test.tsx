@@ -50,6 +50,14 @@ vi.mock("../api/auth", async (importOriginal) => {
   return { ...actual, ensureCsrf: vi.fn().mockResolvedValue(undefined), authApi: mocks.auth };
 });
 
+vi.mock("../api/customer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/customer")>();
+  return {
+    ...actual,
+    wishlistApi: { get: vi.fn().mockResolvedValue({ items: [] }), add: vi.fn(), remove: vi.fn() },
+  };
+});
+
 // ---------- fake server ----------
 
 interface LineSpec {
