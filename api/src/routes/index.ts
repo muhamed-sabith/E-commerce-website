@@ -1,19 +1,22 @@
 import { Router } from "express";
+import { paymentService, type PaymentService } from "../services/payment.service.js";
 import { authRouter } from "./auth.routes.js";
 import { cartRouter } from "./cart.routes.js";
 import { catalogRouter } from "./catalog.routes.js";
 import { customerRouter } from "./customer.routes.js";
+import { createOrderRouter } from "./order.routes.js";
 
 /**
  * /api/v1 — the versioned business surface (docs/API_CONTRACT.md).
- * Routers mount here phase by phase: catalog + auth/account + cart +
- * wishlist/addresses (live), then checkout, orders, demo payment, admin.
- * Nothing business-related ships before its phase.
+ * Live: catalog, auth/account, cart, wishlist/addresses, checkout, orders,
+ * demo payment (demo mode only).
  */
-export const v1Router = Router();
-
-v1Router.use(authRouter);
-v1Router.use(cartRouter);
-v1Router.use(customerRouter);
-v1Router.use(catalogRouter);
-
+export function createV1Router(payments: PaymentService = paymentService): Router {
+  const v1 = Router();
+  v1.use(authRouter);
+  v1.use(cartRouter);
+  v1.use(customerRouter);
+  v1.use(createOrderRouter(payments));
+  v1.use(catalogRouter);
+  return v1;
+}

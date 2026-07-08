@@ -11,6 +11,8 @@ export class ApiError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
+    /** Optional machine-readable detail (e.g. which cart lines failed). */
+    readonly details?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -37,7 +39,13 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     return;
   }
   if (err instanceof ApiError) {
-    res.status(err.status).json({ error: { code: err.code, message: err.message } });
+    res.status(err.status).json({
+      error: {
+        code: err.code,
+        message: err.message,
+        ...(err.details !== undefined ? { details: err.details } : {}),
+      },
+    });
     return;
   }
   console.error("[error] unhandled:", err);

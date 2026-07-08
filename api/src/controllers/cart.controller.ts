@@ -56,22 +56,25 @@ function withIdentity(
   };
 }
 
+// A cart is per-session customer data: never stored by shared caches.
+const noStore = (res: Response) => res.set("Cache-Control", "private, no-store");
+
 export const getCart: RequestHandler = withIdentity(async (_req, res, identity) => {
-  res.json(await cartOps.getCart(identity));
+  noStore(res).json(await cartOps.getCart(identity));
 });
 
 export const addCartItem: RequestHandler = withIdentity(async (req, res, identity) => {
   const input = addToCartSchema.parse(req.body);
-  res.status(200).json(await cartOps.addItem(identity, BigInt(input.product_id), input.qty));
+  noStore(res).status(200).json(await cartOps.addItem(identity, BigInt(input.product_id), input.qty));
 });
 
 export const updateCartItem: RequestHandler = withIdentity(async (req, res, identity) => {
   const lineId = parseLineId(req.params.id);
   const input = updateCartItemSchema.parse(req.body);
-  res.json(await cartOps.updateItem(identity, lineId, input.qty));
+  noStore(res).json(await cartOps.updateItem(identity, lineId, input.qty));
 });
 
 export const removeCartItem: RequestHandler = withIdentity(async (req, res, identity) => {
   const lineId = parseLineId(req.params.id);
-  res.json(await cartOps.removeItem(identity, lineId));
+  noStore(res).json(await cartOps.removeItem(identity, lineId));
 });

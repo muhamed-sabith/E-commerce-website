@@ -116,6 +116,8 @@ export async function me(req: Request, res: Response, next: NextFunction): Promi
       setSessionCookie(res, token);
     }
     issueCsrfToken(req, res);
+    // Identity is per-session customer data: never stored by shared caches.
+    res.set("Cache-Control", "private, no-store");
 
     if (!req.user) {
       res.json({ user: null });
