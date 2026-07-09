@@ -139,6 +139,26 @@ describe("stale session recovery", () => {
   });
 });
 
+describe("cache headers", () => {
+  it("every cart response is private, no-store", async () => {
+    const jar = await guestJar();
+    const product = await firstActiveProduct();
+    const auth = (r: request.Test) =>
+      r.set("Cookie", cookieHeader(jar)).set("X-CSRF-Token", jar["heyrah_csrf"]);
+
+    const read = await getCart(jar);
+    const add = await addItem(jar, product.id.toString(), 1);
+    const lineId = (add.body as AddBody).items[0].id;
+    const patch = await auth(request(app).patch(`${base}/cart/items/${lineId}`)).send({ qty: 2 });
+    const del = await auth(request(app).delete(`${base}/cart/items/${lineId}`));
+
+    for (const res of [read, add, patch, del]) {
+      expect(res.status).toBe(200);
+      expect(res.headers["cache-control"]).toBe("private, no-store");
+    }
+  });
+});
+
 describe("cart identity + read", () => {
   it("returns an empty cart for a brand-new guest (server-shaped zeros)", async () => {
     const jar = await guestJar();
