@@ -403,8 +403,20 @@
   transition: background-color var(--duration-fast) var(--ease-out);
 }
 
-.bag__button:hover {
+.bag__button:hover:not([aria-disabled="true"]) {
   background: var(--color-teal-700);
+}
+
+.bag__checkout {
+  width: 100%;
+  margin-top: var(--space-5);
+  box-sizing: border-box;
+}
+
+.bag__checkout[aria-disabled="true"] {
+  background: var(--color-neutral-200);
+  color: var(--color-ink-600);
+  cursor: not-allowed;
 }
 
 .bag__continue {

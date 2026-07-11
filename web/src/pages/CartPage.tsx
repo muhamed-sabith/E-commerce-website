@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ApiRequestError } from "../api/client";
 import { MAX_LINE_QTY, type CartLine } from "../api/cart";
+import { useAuth } from "../auth/AuthContext";
 import { useCart } from "../cart/CartContext";
 import { formatINR } from "../lib/format";
 import "./cart.css";
@@ -98,9 +99,11 @@ export function CartPage() {
 
 function Summary() {
   const { cart } = useCart();
+  const { user } = useAuth();
   if (!cart) return null;
   const hasDiscount = Number(cart.discountTotal.amount) > 0;
   const blocked = cart.items.some((l) => l.availability !== "available");
+  const canCheckout = !blocked && cart.itemCount > 0;
 
   return (
     <aside className="bag__summary" aria-labelledby="bag-summary-heading">
@@ -134,10 +137,33 @@ function Summary() {
         confirmed at checkout.
       </p>
       {blocked ? (
-        <p className="bag__note bag__note--warn">
-          Items marked unavailable aren't included in your total.
+        <p className="bag__note bag__note--warn" id="bag-checkout-blocked">
+          Items marked unavailable aren't included in your total. Remove them or reduce the
+          quantity to check out.
         </p>
       ) : null}
+      {canCheckout ? (
+        // Guests pass through sign-in and come straight back; the guest bag
+        // merges on the way (API_CONTRACT §3).
+        <Link
+          to={user ? "/checkout" : "/login"}
+          state={user ? undefined : { from: "/checkout" }}
+          className="bag__button bag__checkout"
+          data-testid="checkout-link"
+        >
+          {user ? "Checkout" : "Sign in to check out"}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          className="bag__button bag__checkout"
+          aria-disabled="true"
+          aria-describedby={blocked ? "bag-checkout-blocked" : undefined}
+          data-testid="checkout-link"
+        >
+          Checkout
+        </button>
+      )}
     </aside>
   );
 }

@@ -182,6 +182,12 @@ export function AccountPage() {
               </Link>
             </li>
             <li>
+              <Link to="/orders" className="account-links__item">
+                <span className="account-links__label">Orders</span>
+                <span className="account-links__meta">Order history, status and payment</span>
+              </Link>
+            </li>
+            <li>
               <Link to="/account/addresses" className="account-links__item">
                 <span className="account-links__label">Addresses</span>
                 <span className="account-links__meta">Delivery addresses and your default</span>

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ApiRequestError, authApi } from "../api/auth";
 import { hasMergeNews } from "../api/cart";
 import { useAuth } from "../auth/AuthContext";
@@ -9,12 +9,18 @@ import "./auth.css";
 /**
  * Create account (API_CONTRACT §1, REQUIREMENTS §11.1). Password policy
  * stated before typing, not as an error afterwards. Field-level server
- * errors map back to the specific input.
+ * errors map back to the specific input. Like sign-in, it returns the
+ * shopper to where she was headed (e.g. checkout) once the account exists.
  */
 export function RegisterPage() {
   const { refresh } = useAuth();
   const { showMergeReport } = useCart();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from =
+    typeof location.state?.from === "string" && location.state.from.startsWith("/")
+      ? location.state.from
+      : "/products";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,7 +35,7 @@ export function RegisterPage() {
       const result = await authApi.register({ name, email, password });
       showMergeReport(hasMergeNews(result.merge_report) ? result.merge_report : null);
       await refresh();
-      navigate("/products", { replace: true });
+      navigate(from, { replace: true });
     } catch (err) {
       if (err instanceof ApiRequestError) {
         if (err.code === "email_taken") {
@@ -112,7 +118,10 @@ export function RegisterPage() {
         </form>
 
         <p className="auth-card__switch">
-          Already have an account? <Link to="/login">Sign in</Link>
+          Already have an account?{" "}
+          <Link to="/login" state={{ from }}>
+            Sign in
+          </Link>
         </p>
       </div>
     </main>

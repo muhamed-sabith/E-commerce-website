@@ -98,7 +98,10 @@ export function LoginPage() {
         </form>
 
         <p className="auth-card__switch" id="login-password-hint">
-          New to HEYRAH? <Link to="/register">Create an account</Link>
+          New to HEYRAH?{" "}
+          <Link to="/register" state={{ from }}>
+            Create an account
+          </Link>
         </p>
       </div>
     </main>
