@@ -296,7 +296,11 @@ describe("cart page", () => {
     expect(within(archived).getByRole("button", { name: "Remove Archive Tote from bag" })).toBeTruthy();
 
     expect(screen.getByTestId("bag-total").textContent).toBe("₹1,000.00");
-    expect(screen.getByText("Items marked unavailable aren't included in your total.")).toBeTruthy();
+    expect(screen.getByText(/Items marked unavailable aren't included in your total\./)).toBeTruthy();
+    // checkout is blocked, with the reason attached
+    const checkout = screen.getByTestId("checkout-link");
+    expect(checkout.getAttribute("aria-disabled")).toBe("true");
+    expect(checkout.getAttribute("aria-describedby")).toBe("bag-checkout-blocked");
     // header count is the server's purchasable count
     expect(bagCount()).toBe("1");
   });
