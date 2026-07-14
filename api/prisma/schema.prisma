@@ -14,33 +14,72 @@ datasource db {
 
 /// §2.1 users — identity + role; sessions are the authz runtime evidence
 model User {
-  id           BigInt    @id @default(autoincrement()) @db.BigInt
-  name         String    @db.VarChar(120) // required, trimmed
-  email        String    @unique @db.VarChar(255) // normalized lowercase
-  passwordHash String    @map("password_hash") @db.VarChar(255) // bcrypt output; plaintext never exists here
-  role         String    @default("USER") @db.VarChar(10) // CHECK-in ('USER','ADMIN') enforced by migration SQL
-  isBlocked    Boolean   @default(false) @map("is_blocked") // admin action (§3.10)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id           BigInt   @id @default(autoincrement()) @db.BigInt
+  name         String   @db.VarChar(120) // required, trimmed
+  email        String   @unique @db.VarChar(255) // normalized lowercase
+  passwordHash String   @map("password_hash") @db.VarChar(255) // bcrypt output; plaintext never exists here
+  role         String   @default("USER") @db.VarChar(10) // CHECK-in ('USER','ADMIN') enforced by migration SQL
+  isBlocked     Boolean   @default(false) @map("is_blocked") // admin action (§3.10)
+  blockedReason String?   @map("blocked_reason") @db.VarChar(255) // required when blocked (CHECK in SQL)
+  blockedAt     DateTime? @map("blocked_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   sessions      Session[]
   cart          Cart?
   wishlistItems WishlistItem[]
   addresses     Address[]
+  orders        Order[]
+  adminActions  AdminAuditLog[]
 
   @@map("users")
+}
+
+/// §2.15 store_settings — one row (id = 1, CHECK in SQL) of operational
+/// values an admin may change. Brand values are deliberately absent: they
+/// are constants, never settings. Missing row → environment defaults.
+model StoreSettings {
+  id                    Int      @id @default(1)
+  lowStockThreshold     Int      @map("low_stock_threshold")
+  shippingFlatRate      Decimal  @map("shipping_flat_rate") @db.Decimal(10, 2)
+  shippingFreeThreshold Decimal  @map("shipping_free_threshold") @db.Decimal(10, 2)
+  defaultSort           String   @map("default_sort") @db.VarChar(12)
+  pageSize              Int      @map("page_size")
+  updatedBy             BigInt?  @map("updated_by") @db.BigInt
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("store_settings")
+}
+
+/// §2.16 admin_audit_log — append-only record of admin actions that have no
+/// dedicated audit table (catalog, categories, images, users, settings).
+/// Order/payment moves live in order_status_history; stock in stock_adjustments.
+model AdminAuditLog {
+  id         BigInt   @id @default(autoincrement()) @db.BigInt
+  actorId    BigInt   @map("actor_id") @db.BigInt
+  action     String   @db.VarChar(40)
+  targetType String   @map("target_type") @db.VarChar(20)
+  targetId   String?  @map("target_id") @db.VarChar(40)
+  details    Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([targetType, targetId])
+  @@index([createdAt(sort: Desc)])
+  @@map("admin_audit_log")
 }
 
 /// §11.4 sessions — server-side state for instant revocation. The PK is the
 /// sha256 hash of the cookie token: a stolen DB dump yields no usable cookies.
 /// user_id NULL = guest session (cart phase keys off these).
 model Session {
-  id           String   @id @db.VarChar(64) // hex(sha256(token))
-  userId       BigInt?  @map("user_id") @db.BigInt
-  expiresAt    DateTime @map("expires_at") @db.Timestamptz(6) // absolute ceiling
-  lastSeenAt   DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6) // idle expiry basis
-  rotatedFrom  String?  @map("rotated_from") @db.VarChar(64) // audit chain of login rotation
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id          String   @id @db.VarChar(64) // hex(sha256(token))
+  userId      BigInt?  @map("user_id") @db.BigInt
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz(6) // absolute ceiling
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6) // idle expiry basis
+  rotatedFrom String?  @map("rotated_from") @db.VarChar(64) // audit chain of login rotation
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -54,11 +93,11 @@ model Session {
 /// session). The XOR is enforced by migration SQL; one active cart per user
 /// via the partial unique index.
 model Cart {
-  id           BigInt     @id @default(autoincrement()) @db.BigInt
-  userId       BigInt?    @unique @map("user_id") @db.BigInt
-  sessionToken String?    @unique @map("session_token") @db.VarChar(64) // sha256 of the guest session token
-  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id           BigInt   @id @default(autoincrement()) @db.BigInt
+  userId       BigInt?  @unique @map("user_id") @db.BigInt
+  sessionToken String?  @unique @map("session_token") @db.VarChar(64) // sha256 of the guest session token
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   user  User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
   items CartItem[]
@@ -73,7 +112,7 @@ model CartItem {
   id        BigInt   @id @default(autoincrement()) @db.BigInt
   cartId    BigInt   @map("cart_id") @db.BigInt
   productId BigInt   @map("product_id") @db.BigInt
-  quantity  Int      // CHECK (> 0 AND <= 99) enforced by migration SQL
+  quantity  Int // CHECK (> 0 AND <= 99) enforced by migration SQL
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -122,6 +161,101 @@ model Address {
   @@map("addresses")
 }
 
+/// §2.9 orders — created in one transaction with stock deduction. Money and
+/// the shipping snapshot are immutable after insert (trigger in migration
+/// SQL); only status/payment_status and their milestone timestamps move.
+model Order {
+  id               BigInt    @id @default(autoincrement()) @db.BigInt
+  orderNumber      String    @unique @map("order_number") @db.VarChar(20) // HEY-YYMMDD-####
+  userId           BigInt    @map("user_id") @db.BigInt
+  status           String    @default("pending") @db.VarChar(12) // CHECK-in ladder values (migration SQL)
+  paymentStatus    String    @default("PENDING_PAYMENT") @map("payment_status") @db.VarChar(20) // CHECK ('PENDING_PAYMENT','PAID')
+  subtotal         Decimal   @db.Decimal(12, 2)
+  discountTotal    Decimal   @map("discount_total") @db.Decimal(12, 2)
+  shippingTotal    Decimal   @map("shipping_total") @db.Decimal(12, 2)
+  grandTotal       Decimal   @map("grand_total") @db.Decimal(12, 2) // CHECK = subtotal - discount_total + shipping_total
+  shipReceiverName String    @map("ship_receiver_name") @db.VarChar(120)
+  shipPhone        String    @map("ship_phone") @db.VarChar(24)
+  shipLine1        String    @map("ship_line1") @db.VarChar(120)
+  shipLine2        String?   @map("ship_line2") @db.VarChar(120)
+  shipCity         String    @map("ship_city") @db.VarChar(80)
+  shipState        String    @map("ship_state") @db.VarChar(80)
+  shipPostalCode   String    @map("ship_postal_code") @db.VarChar(16)
+  shipCountryCode  String    @map("ship_country_code") @db.Char(2)
+  placedAt         DateTime  @default(now()) @map("placed_at") @db.Timestamptz(6)
+  confirmedAt      DateTime? @map("confirmed_at") @db.Timestamptz(6)
+  cancelledAt      DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items         OrderItem[]
+  statusHistory OrderStatusHistory[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("orders")
+}
+
+/// §2.10 order_items — append-only purchase-time snapshots; the product FK
+/// may later point at an archived product, the snapshot stays authoritative.
+model OrderItem {
+  id                  BigInt   @id @default(autoincrement()) @db.BigInt
+  orderId             BigInt   @map("order_id") @db.BigInt
+  productId           BigInt   @map("product_id") @db.BigInt
+  productNameSnapshot String   @map("product_name_snapshot") @db.VarChar(120)
+  skuSnapshot         String   @map("sku_snapshot") @db.VarChar(40)
+  unitPrice           Decimal  @map("unit_price") @db.Decimal(10, 2)
+  discountAmount      Decimal  @map("discount_amount") @db.Decimal(10, 2) // per unit
+  finalPrice          Decimal  @map("final_price") @db.Decimal(10, 2)
+  quantity            Int
+  lineTotal           Decimal  @map("line_total") @db.Decimal(12, 2)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+/// §2.11 order_status_history — append-only audit trail. Order-status rows
+/// use the lowercase ladder values; payment transitions are recorded with
+/// the uppercase payment values (PENDING_PAYMENT → PAID) and a note.
+model OrderStatusHistory {
+  id         BigInt   @id @default(autoincrement()) @db.BigInt
+  orderId    BigInt   @map("order_id") @db.BigInt
+  fromStatus String?  @map("from_status") @db.VarChar(20)
+  toStatus   String   @map("to_status") @db.VarChar(20)
+  actorType  String   @map("actor_type") @db.VarChar(10) // CHECK ('USER','ADMIN','SYSTEM')
+  actorId    BigInt?  @map("actor_id") @db.BigInt
+  note       String?  @db.VarChar(255)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("order_status_history")
+}
+
+/// §2.13 stock_adjustments — append-only inventory audit.
+model StockAdjustment {
+  id                BigInt   @id @default(autoincrement()) @db.BigInt
+  productId         BigInt   @map("product_id") @db.BigInt
+  delta             Int
+  resultingQuantity Int      @map("resulting_quantity")
+  reason            String   @db.VarChar(40) // CHECK-in reason list (migration SQL)
+  actorType         String   @map("actor_type") @db.VarChar(10)
+  actorId           BigInt?  @map("actor_id") @db.BigInt
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([productId, createdAt])
+  @@map("stock_adjustments")
+}
+
 /// §2.2 categories
 model Category {
   id        BigInt    @id @default(autoincrement()) @db.BigInt
@@ -153,11 +287,13 @@ model Product {
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  category       Category               @relation(fields: [categoryId], references: [id])
-  images         ProductImage[]
-  specifications ProductSpecification[]
-  cartItems      CartItem[]
-  wishlistItems  WishlistItem[]
+  category         Category               @relation(fields: [categoryId], references: [id])
+  images           ProductImage[]
+  specifications   ProductSpecification[]
+  cartItems        CartItem[]
+  wishlistItems    WishlistItem[]
+  orderItems       OrderItem[]
+  stockAdjustments StockAdjustment[]
 
   @@index([categoryId])
   @@index([status, stockQuantity])

@@ -399,6 +399,15 @@ export async function seed(): Promise<{ categories: number; products: number }> 
 }
 
 async function seedInner(): Promise<void> {
+  // Orders + inventory audit are append-only (row triggers reject DELETE)
+  // and reference products with ON DELETE RESTRICT. A catalog reset must
+  // therefore clear them first — TRUNCATE is a table-level owner operation,
+  // used only by this dev/test seed, never by application paths.
+  await prisma.$executeRawUnsafe(
+    `TRUNCATE TABLE order_status_history, order_items, orders, stock_adjustments RESTART IDENTITY`,
+  );
+  // Store settings back to the documented defaults (no row = defaults).
+  await prisma.storeSettings.deleteMany();
   await prisma.productSpecification.deleteMany();
   await prisma.productImage.deleteMany();
   await prisma.product.deleteMany();
