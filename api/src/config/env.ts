@@ -19,6 +19,29 @@ const envSchema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
   /** Auth rate-limit window in ms. */
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  /**
+   * Payment mode (ARCHITECTURE §5.5). `demo` mounts the demo simulator;
+   * `manual` (the safe default, and the production setting) unmounts it —
+   * only admin manual confirmation can mark an order PAID.
+   */
+  PAYMENT_MODE: z.enum(["demo", "manual"]).default("manual"),
+  /** v1 shipping (REQUIREMENTS §8, decision 3): flat rate, free at/above a threshold. INR. */
+  SHIPPING_FLAT_RATE: z
+    .string()
+    .regex(/^\d{1,8}(\.\d{1,2})?$/)
+    .default("99.00"),
+  SHIPPING_FREE_THRESHOLD: z
+    .string()
+    .regex(/^\d{1,8}(\.\d{1,2})?$/)
+    .default("2999.00"),
+  /**
+   * Product image storage root (REQUIREMENTS §12.6). Re-encoded uploads are
+   * written under `<UPLOAD_DIR>/products/<product-id>/` with generated names
+   * and served read-only at /assets. Relative paths resolve from the API cwd.
+   */
+  UPLOAD_DIR: z.string().min(1).default("uploads"),
+  /** Upload size ceiling in bytes (default 5 MB). */
+  UPLOAD_MAX_BYTES: z.coerce.number().int().positive().max(20_000_000).default(5_000_000),
 });
 
 const parsed = envSchema.safeParse(process.env);

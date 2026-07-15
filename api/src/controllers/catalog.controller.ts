@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { catalogQuerySchema, createCatalogService } from "../services/catalog.service.js";
 import { catalogRepository } from "../repositories/catalog.repository.js";
+import { getSettings } from "../services/settings.service.js";
 
 /** Controllers translate HTTP ↔ service; no business decisions live here. */
 const catalogService = createCatalogService(catalogRepository);
@@ -15,7 +16,9 @@ function parseQuery(req: Request) {
  */
 export async function listProducts(req: Request, res: Response): Promise<void> {
   const query = parseQuery(req);
-  const result = await catalogService.listProducts(query);
+  // Store settings (admin) supply the default sort + page size.
+  const s = await getSettings();
+  const result = await catalogService.listProducts(query, { sort: s.defaultSort, pageSize: s.pageSize });
   res.json(result);
 }
 

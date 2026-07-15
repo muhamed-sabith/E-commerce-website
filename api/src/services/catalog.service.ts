@@ -33,6 +33,8 @@ export interface ProductListItem {
 
 export interface ProductListResult {
   items: ProductListItem[];
+  /** The sort actually applied (the store default when none was asked for). */
+  sort: string;
   page: number;
   pageSize: number;
   totalItems: number;
@@ -102,9 +104,11 @@ const SORTS: Record<string, Prisma.Sql> = {
   name_desc: Prisma.sql`p.name DESC, p.created_at DESC, p.id DESC`,
 };
 
-function resolveSort(sort: string | undefined): Prisma.Sql {
-  // Unknown/garbage → documented default `newest`, never an error (§5).
-  return SORTS[sort ?? ""] ?? SORTS.newest;
+/** Unknown/garbage → the store default sort (`newest` unless an admin changed it), never an error (§5). */
+function resolveSort(sort: string | undefined, fallback: string): { key: string; sql: Prisma.Sql } {
+  if (sort && SORTS[sort]) return { key: sort, sql: SORTS[sort] };
+  const key = SORTS[fallback] ? fallback : "newest";
+  return { key, sql: SORTS[key] };
 }
 
 // ---------- search tokenization (REQUIREMENTS §5) ----------
@@ -140,7 +144,8 @@ export const catalogQuerySchema = z.object({
     .transform((v) => v === "true" || v === "1"),
   sort: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
-  page_size: z.coerce.number().int().min(1).max(48).default(12),
+  /** Omitted: the store setting applies (admin, default 12). */
+  page_size: z.coerce.number().int().min(1).max(48).optional(),
 });
 
 export type CatalogQuery = z.infer<typeof catalogQuerySchema>;
@@ -205,9 +210,10 @@ export function createCatalogService(dataSource: CatalogDataSource) {
       return matched.filter((c): c is NonNullable<typeof c> => c !== null).map((c) => c.id);
     },
 
-    toListResult(rows: ProductListRow[], page: number, pageSize: number, totalItems: number): ProductListResult {
+    toListResult(rows: ProductListRow[], page: number, pageSize: number, totalItems: number, sort = "newest"): ProductListResult {
       return {
         items: rows.map(toListItem),
+        sort,
         page,
         pageSize,
         totalItems,
@@ -215,7 +221,11 @@ export function createCatalogService(dataSource: CatalogDataSource) {
       };
     },
 
-    async listProducts(query: CatalogQuery): Promise<ProductListResult> {
+    async listProducts(
+      query: CatalogQuery,
+      defaults: { sort: string; pageSize: number } = { sort: "newest", pageSize: 12 },
+    ): Promise<ProductListResult> {
+      const pageSize = query.page_size ?? defaults.pageSize;
       const slugs = normalizeCategorySlugs(query.category);
       const categoryIds = await this.resolveCategoryIds(slugs);
       const searchTokens = tokenizeSearch(query.q);
@@ -229,7 +239,7 @@ export function createCatalogService(dataSource: CatalogDataSource) {
         [minFinal, maxFinal] = [null, null];
       }
 
-      const sortClause = resolveSort(query.sort);
+      const sort = resolveSort(query.sort, defaults.sort);
 
       const { rows, totalItems } = await dataSource.listProducts({
         categoryIds,
@@ -237,12 +247,12 @@ export function createCatalogService(dataSource: CatalogDataSource) {
         minFinalPrice: minFinal,
         maxFinalPrice: maxFinal,
         inStockOnly: query.in_stock,
-        sortClause,
+        sortClause: sort.sql,
         page: query.page,
-        pageSize: query.page_size,
+        pageSize,
       });
 
-      return this.toListResult(rows, query.page, query.page_size, totalItems);
+      return this.toListResult(rows, query.page, pageSize, totalItems, sort.key);
     },
 
     async getProductBySlug(slug: string): Promise<ProductDetail> {
