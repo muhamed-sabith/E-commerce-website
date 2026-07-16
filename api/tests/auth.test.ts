@@ -216,7 +216,10 @@ describe("POST /auth/login", () => {
     const { res } = await registerUser();
     const email = (res.body as UserBody).user.email;
     const id = BigInt((res.body as UserBody).user.id);
-    await prisma.user.update({ where: { id }, data: { isBlocked: true } });
+    await prisma.user.update({
+      where: { id },
+      data: { isBlocked: true, blockedReason: "Test block", blockedAt: new Date() },
+    });
 
     const guest = await bootstrap();
     const login = await request(app)
@@ -410,6 +413,20 @@ describe("rate limiting", () => {
     expect((overQuota.body as { error: { code: string } }).error.code).toBe("rate_limited");
     expect(overQuota.headers["retry-after"]).toBeDefined();
     resetRateLimiter();
+  });
+});
+
+describe("GET /auth/me cache headers", () => {
+  it("is private, no-store for guests and signed-in users", async () => {
+    const guest = await request(app).get(base + "/auth/me");
+    expect(guest.headers["cache-control"]).toBe("private, no-store");
+
+    const { res } = await registerUser();
+    const me = await request(app)
+      .get(base + "/auth/me")
+      .set("Cookie", cookieHeader(extractCookies(res)));
+    expect((me.body as UserBody).user).not.toBeNull();
+    expect(me.headers["cache-control"]).toBe("private, no-store");
   });
 });
 
