@@ -8,6 +8,9 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "tests/e2e",
   timeout: 30_000,
+  // Every spec mutates the one shared dev database (stock, prices, store
+  // settings); running files one at a time keeps those states deterministic.
+  workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: [["list"]],
   use: {
