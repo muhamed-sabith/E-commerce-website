@@ -42,6 +42,8 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const method = options.method ?? "GET";
   const mutating = method !== "GET";
+  // Multipart (image upload): the browser sets the boundary header itself.
+  const isForm = typeof FormData !== "undefined" && options.body instanceof FormData;
 
   // A mutation can fire before the load-time bootstrap has set the CSRF
   // cookie (fast submit on first paint). Bootstrap first rather than send
@@ -52,7 +54,7 @@ export async function apiRequest<T>(
 
   const send = () => {
     const headers: Record<string, string> = { Accept: "application/json" };
-    if (options.body !== undefined) {
+    if (options.body !== undefined && !isForm) {
       headers["Content-Type"] = "application/json";
     }
     if (mutating) {
@@ -62,7 +64,12 @@ export async function apiRequest<T>(
       method,
       headers,
       credentials: "include",
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body:
+        options.body === undefined
+          ? undefined
+          : isForm
+            ? (options.body as FormData)
+            : JSON.stringify(options.body),
     });
   };
 

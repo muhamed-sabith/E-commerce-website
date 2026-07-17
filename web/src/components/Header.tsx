@@ -32,6 +32,11 @@ export function Header({ categories }: { categories: { slug: string; name: strin
     }
     return (
       <span className="site-header__account">
+        {user.role === "ADMIN" ? (
+          <Link to="/admin" className="site-header__link">
+            Admin
+          </Link>
+        ) : null}
         <Link to="/account" className="site-header__link">
           {user.name}
         </Link>
