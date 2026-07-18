@@ -44,11 +44,12 @@
 - **Badges:** in stock / low stock (admin only) / out of stock — always textual + color.
 - **Forms:** labeled inputs, inline validation messages, 44px+ touch targets, visible gold/teal focus ring (contrast-checked per surface).
 - **Empty/error/loading states:** defined per REQUIREMENTS §13 — skeletons for grids, spinner-in-button for actions, honest empty states with next actions.
-- **Demo payment page:** full teal-900 premium frame, order summary card, mock method selector (Demo Card / Demo UPI / Demo QR), persistent "DEMO / TEST MODE" indicator, restrained three-step processing sequence — this page is the design system's showcase moment.
+- **Demo payment page:** full teal-900 premium frame, order summary card, mock method selector (Demo Card / Demo UPI / Demo QR), persistent "DEMO / TEST MODE" indicator, restrained three-step processing sequence — this page is the design system's showcase moment. *As built:* blush "DEMO / TEST MODE" band under the header; ivory summary card; the payment sheet is a white dialog with a teal-900 header band (wordmark, gold test badge, serif amount) over a teal-tinted backdrop, docking to the bottom edge under 520px; progress is a teal ring that closes into a green check; motion 180–420ms, transform/opacity only, none under reduced motion.
 
 ## 6. Admin UI
 
 - Clean, dense, professional; brand applied subtly (teal sidebar/accents, light content area); tables over cards for lists; no decorative motion; keyboard-first operation.
+- *As built (Phase 10, `web/src/admin/admin.css`, `adm-` prefix):* teal-900 sidebar with the gold wordmark and a gold left rule on the active item; white panels on a cool neutral (#f5f6f4). Gold appears only in the wordmark, the active nav marker, the "Paid"/"Primary" badges, and the one money action (Confirm payment received). The serif display face is used only for page titles and dashboard figures. Badges always carry text. Tables collapse to labelled stacked rows under 720px (no sideways scrolling); touch targets 44px (36px for in-row secondary buttons); destructive actions use a native `<dialog>` with focus on the safe choice.
 
 ## 7. Accessibility baseline
 

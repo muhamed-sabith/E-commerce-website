@@ -137,6 +137,16 @@ Reserved for the day a real gateway is approved (would hold method, gateway stat
 
 id PK, product_id FK, delta INT, resulting_quantity INT, reason VARCHAR(40) CHECK in ('restock','correction','damaged','sale','cancel_restore','admin_set','initial'), actor_type / actor_id, created_at. **Append-only** — inventory audit per REQUIREMENTS §9; no UPDATE/DELETE from application paths.
 
+### 2.15 store_settings (Phase 10)
+
+Single row (`id = 1`, CHECK): `low_stock_threshold` INT (0–1000), `shipping_flat_rate` / `shipping_free_threshold` DECIMAL(10,2) ≥ 0, `default_sort` CHECK in the catalog sort keys, `page_size` INT (4–48), `updated_by`, `updated_at`. No row = documented defaults. No brand or currency columns — those are constants.
+
+### 2.16 admin_audit_log (Phase 10)
+
+id PK, actor_id FK → users (RESTRICT), action VARCHAR(40) (`product.create|update|archive|delete`, `image.upload|delete|primary`, `category.create|update|delete|reassign`, `user.block|unblock`, `settings.update`), target_type, target_id, details JSONB, created_at. Append-only (same row trigger as the other audit tables). Order/payment and stock changes keep their dedicated audit tables.
+
+**users (Phase 10):** `blocked_reason` VARCHAR(255) and `blocked_at` added; CHECK — unblocked rows carry neither, blocked rows carry a non-blank reason and a timestamp (existing blocked rows were backfilled with an explicit "Blocked before reasons were recorded").
+
 ### 2.14 DB-enforced integrity summary (v0.2)
 
 Beyond app validation, the database itself must make wrong states impossible:
@@ -146,7 +156,8 @@ Beyond app validation, the database itself must make wrong states impossible:
 - `cart_items.quantity > 0 AND quantity <= 99` — the cart hard cap enforced close to the data.
 - `order_items.unit_price >= 0`, `final_price > 0`, `quantity > 0`, `line_total >= 0`.
 - UNIQUE on: `users.email`, `categories.slug`, `products.slug`, `products.sku`, `orders.order_number`, `cart_items(cart_id, product_id)`, `product_images(product_id, position)`, `product_specifications(product_id, spec_key)`.
-- Append-only tables (`order_items`, `stock_adjustments`, `order_status_history`) protected by revoking UPDATE/DELETE from the application role at the migration level.
+- Append-only tables (`order_items`, `stock_adjustments`, `order_status_history`) protected at the migration level. **Implemented (Phase 9) with row triggers** rather than REVOKE, because the application connects as the owning role: UPDATE/DELETE on those tables raise an error; `orders` can never be deleted and its identity, money, and shipping-snapshot columns are frozen — only `status`, `payment_status`, `confirmed_at`, `cancelled_at`, `updated_at` change. TRUNCATE (owner-only, dev/test seed reset) remains possible.
+- Implemented order CHECKs: status and payment_status enumerations; `grand_total = subtotal − discount_total + shipping_total`; `order_number ~ '^HEY-[0-9]{6}-[0-9]{4,}$'`; line `final_price = unit_price − discount_amount` and `line_total = final_price × quantity`; stock-adjustment reason/actor enumerations and `resulting_quantity >= 0`. `order_items.discount_amount` is **per unit**. `order_status_history` also records payment transitions using the uppercase payment values (`PENDING_PAYMENT → PAID`). FKs from orders/items/adjustments to users/products are `RESTRICT`.
 
 ## 3. Relations (narrative)
 
@@ -158,7 +169,8 @@ Beyond app validation, the database itself must make wrong states impossible:
 ## 4. Planned indexes
 
 - products: (category_id), (status, stock_quantity), (slug), (sku), (price), (created_at DESC) — serving §5–7 query paths.
-- orders: (user_id, created_at DESC), (order_number), (status).
+- orders: (user_id, created_at DESC), (order_number), (status), (created_at DESC) — the last for the admin list.
+- admin_audit_log: (target_type, target_id), (created_at DESC).
 - order_items: (order_id). cart_items: (cart_id). stock_adjustments: (product_id, created_at).
 - Final list must be re-verified against real query plans in the performance phase.
 
@@ -192,6 +204,6 @@ Rendering note: the mermaid block lives inside this markdown so GitHub renders i
 ## 6. Open questions
 
 - JSONB vs relational rows for product specifications (v0.1 chose relational for queryability).
-- Order number generator: sequence-per-day vs random tail — decide with implementation.
+- ~~Order number generator~~ — **decided (Phase 9): sequence-per-day** (`HEY-YYMMDD-####`, India date, per-day advisory lock inside the checkout transaction; the UNIQUE index is the backstop; the tail grows past 4 digits if ever needed).
 - ~~Session-token cart vs server-side guest cart storage~~ — **decided (v1): guest cart keyed by the unauthenticated session** (`carts.session_token`), per the cookie-session decision; merge-on-login rules specified above.
 - ~~SQLAlchemy/Alembic vs Prisma~~ — **decided: Prisma ORM + Prisma Migrations** (PERN stack change); models mirror this document — entities and constraints unchanged.

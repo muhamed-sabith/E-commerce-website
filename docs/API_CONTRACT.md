@@ -2,7 +2,7 @@
 
 **Status:** v0.4 draft — guest cart, demo payment model, conventions; framework-neutral (Express implements it; contract unchanged by the stack change)
 **Depends on:** `docs/REQUIREMENTS.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE_SCHEMA.md`
-**No implementation exists yet.** This is the surface the API will be built to match.
+**Implemented so far:** §1 auth/account, §2 catalog, §3 cart, wishlist, addresses, checkout, orders, demo payment, §4 admin (Phase 10).
 
 Base: `/api/v1` — JSON over HTTPS. Auth: cookie sessions. **Every visitor, including guests, is issued a session cookie automatically** — guests hold it unauthenticated (their temporary cart keys off it), protected endpoints require an authenticated session. Role checks are server-side on every endpoint below; the "Auth" column describes intent, never a client-side promise.
 
@@ -73,6 +73,13 @@ Stock is validated during the merge — a merge can never oversell.
 - Address bodies: `receiver_name, phone, line1, line2?, city, state, postal_code, country_code` — strict (unknown keys such as `user_id`, `is_default` → `400`). Text trimmed and whitespace-collapsed; control characters rejected; phone 7–15 digits (`+ - ( )` and spaces allowed); `country_code` ISO alpha-2 (uppercased); postal code 3–16 letters/digits/space/`-`, **6 digits when `country_code = IN`**.
 - Default rules: first address becomes default; exactly one default whenever any address exists (also a partial unique index); `POST /addresses/{id}/default` clears the previous default in the same transaction. `DELETE` of a non-default or the only address succeeds; deleting the default while others exist requires `?new_default_id=` (another owned address) — otherwise `409 default_reassignment_required`.
 - Foreign ids on any wishlist/address route → `404 unknown_resource` (no existence leak). Responses are `Cache-Control: private, no-store`.
+
+**Checkout, orders, demo payment (implemented, Phase 9):**
+
+- `POST /checkout/preview` body `{address_id?}` (strict). Returns `lines` (each with `problem` or null), `problems`, `canPlaceOrder`, `address` (chosen, else default), `addresses`, `itemCount`, `subtotal`, `discountTotal`, `shippingTotal`, `grandTotal`, `shipping {flatRate, freeThreshold}`. Empty bag → `409 cart_empty`; foreign address → 404. Read-only.
+- `POST /checkout` body `{address_id}` (strict — any money, status, or owner field → 400). `201 {order: {id, orderNumber, status, paymentStatus, grandTotal}, payment: {mode, demo_payment_url?}}`. Failures: `409 stock_shortage` / `cart_stale` with `details: [{line_id, product_id, name, reason, requested, available}]`, `409 cart_empty`, `404` foreign address. All-or-nothing (ARCHITECTURE §5).
+- `GET /orders?page=&page_size=` → list envelope of `{id, orderNumber, placedAt, status, paymentStatus, grandTotal, itemCount}`, newest first. `GET /orders/{id}` → `{order}` with snapshot `items` (`unitPrice`, per-unit `discount`, `finalPrice`, `quantity`, `lineTotal`, `sku`), `shipping` snapshot, totals, `timeline`, and `payment {mode, canPay, demo_payment_url?}`.
+- Demo endpoints accept `{method?: "demo_card"|"demo_upi"|"demo_qr"}` only. `confirm` is idempotent on PAID; `fail` on PAID → `409 already_paid`; cancelled orders → `409 not_payable`. Foreign/unknown order ids → 404 everywhere. In manual mode the demo routes are not registered (404).
 | POST | `/checkout/preview` | **authenticated only** — authoritative totals + shipping + per-line validation, pre-order |
 | POST | `/checkout` | **authenticated only — the authoritative order creation endpoint.** Re-validates every line, deducts stock atomically (any failure rolls back the entire order — no partial orders), snapshots line prices, creates the order with `payment_status = PENDING_PAYMENT` |
 | GET | `/orders` | own orders, newest first |
@@ -124,6 +131,20 @@ Rules:
 | POST | `/admin/users/{id}/block` / `/unblock` | block with reason |
 | GET | `/admin/settings` / PUT | thresholds, shipping, sort default; brand values immutable |
 
+**As implemented (Phase 10):**
+
+- **Gate.** One router for `/admin/*`: `ensureSession → requireAdmin → csrfProtect`. The role is read from the `users` row on every request (a demoted admin is refused on the next call). Guest → `401 authentication_required`, USER → `403 access_denied`, mutations without the double-submit token → `403 csrf_failed`. Every response is `Cache-Control: private, no-store`. All bodies are strict Zod — unknown keys (ids, roles, audit fields, totals, `stock_quantity` on PATCH) → `400`. Malformed or unknown ids → `404 unknown_resource`.
+- Extra reads used by the UI: `GET /admin/products` (`q` name/SKU, `status`, `category_id`, paging), `GET /admin/products/{id}` (images, specs, `deletion: "archive"|"delete"`, last 10 stock moves), `GET /admin/categories` (with product counts), `GET /admin/orders/{id}`, `POST /admin/images/{id}/primary`.
+- `GET /admin/dashboard` → `orders {total, today, byStatus}`, `revenue {paid, awaitingPayment, awaitingPaymentCount, todayOrderValue}` (paid = PAID and not cancelled; "today" = since India midnight), `inventory {lowStockThreshold, productCount, lowStockCount, outOfStockCount, lowStock[≤8], outOfStock[≤8]}`, `recentOrders[≤8]`, `paymentMode`. All aggregated in SQL.
+- Products: `POST` `{name, slug?, sku (HEY-ABC-12345), description, price, discount {type: none|percent|fixed, value}, category_id (active), status (default inactive), stock_quantity (opening, audited as initial), low_stock_threshold|null, specifications[]}` → `201 {product}`. `PATCH` the same fields, partial, minus stock. Conflicts `409 sku_taken` / `slug_taken` carry `details[{path, message}]`; `409 image_required` when going active without an image. `DELETE` → `{result: "archived"}` if the product has order lines or stock history, else `{result: "deleted"}`.
+- Images: `POST /admin/products/{id}/images` multipart (`image`, optional `alt_text`), ≤ `UPLOAD_MAX_BYTES` (5 MB) → `413 file_too_large`; non JPEG/PNG/WebP by magic bytes, or undecodable → `415 unsupported_image`; under 200 px → `422 image_too_small`; max 12 per product. `DELETE /admin/images/{id}` refuses the last image of an active product (`409 last_image`); positions re-pack from 0.
+- Categories: `POST {name, slug?, is_active, sort_order}` / `PATCH` → full list; `409 slug_taken`. `DELETE /admin/categories/{id}?reassign_to=` → `409 category_in_use {details.product_count}` unless a different active destination is named; the move and the delete are one transaction.
+- `GET /admin/inventory?filter=all|low|out&q=` → list + `counts {all, low, out}` + `lowStockThreshold`; low = `0 < stock ≤ COALESCE(product threshold, store threshold)`; archived products excluded.
+- `POST /admin/products/{id}/stock-adjustments` body is one of `{reason: "restock", delta > 0}`, `{reason: "damaged", delta < 0}`, `{reason: "correction", delta ≠ 0}`, `{reason: "admin_set", quantity ≥ 0}` (server computes the delta). `sale`/`cancel_restore`/`initial` are system-only. Below zero → `409 negative_stock`, nothing written. `201 {adjustment, stockQuantity}`.
+- Orders: `GET /admin/orders?q=&status=&payment=&page=` (q matches order number, customer name or email; newest first; 24 per page). `POST /admin/orders/{id}/status {status: confirmed|shipped|delivered|cancelled, note?}` — the ladder only; repeats, skips, and moves out of delivered/cancelled → `409 illegal_transition`. Cancelling restores stock (see ARCHITECTURE §5). `POST /admin/orders/{id}/payment-status {status: "PAID", note?}` — anything else → 400; already PAID → `409 already_paid`; cancelled → `409 not_payable`.
+- Users: `GET /admin/users?q=&status=active|blocked` (explicit columns — no password hash ever selected; includes `orderCount`, `lastOrderAt`). `POST /admin/users/{id}/block {reason (3–255)}` revokes every session in the same transaction; admins and self → `409 cannot_block_admin` / `cannot_block_self`; repeat → `409 already_blocked`. `POST …/unblock {}` → `409 not_blocked` if not blocked. No role-change endpoint exists.
+- Settings: `GET` → `{settings {lowStockThreshold, shippingFlatRate, shippingFreeThreshold, defaultSort, pageSize, updatedAt, isDefault}, fixed {brand {name, tagline}, currency}}`. `PUT` requires all five values (threshold 0–1000, money ≤ 2 dp, sort key, page size 4–48); brand/currency keys → 400. Settings drive the catalog default sort/page size (`GET /products` now reports the applied `sort`), checkout shipping, and low-stock flags.
+
 ## 5. The sorting contract (critical)
 
 `sort` accepts: `price_asc`, `price_desc`, `newest`, `name_asc`, `name_desc`. Unknown value → falls back to `newest` (documented, no error). `price_asc`/`price_desc` MUST compare the numeric column: given prices `100, 25, 1000, 250`, `price_asc` returns `25 → 100 → 250 → 1000`. Any string-collation result is a defect. Ties break on `created_at DESC, id DESC`. Sorting resolves after search+filter and before pagination — page 2 continues the same deterministic order.
@@ -146,6 +167,13 @@ Rules:
 | `stock_shortage` | 409 | checkout/cart line lost the race; `details` names lines |
 | `cart_stale` | 409 | inactive/archived/removed products in cart |
 | `default_reassignment_required` | 409 | deleting the default address while others exist without naming `new_default_id` |
+| `cart_empty` | 409 | checkout/preview with no lines (also the answer to a duplicate checkout submit) |
+| `illegal_transition` | 409 | order status move not on the ladder |
+| `already_paid` / `not_payable` | 409 | demo failure or admin confirmation on a PAID order / payment attempted on a cancelled order |
+| `sku_taken` / `slug_taken` | 409 | admin product/category uniqueness; `details` names the field |
+| `negative_stock` | 409 | stock adjustment would go below zero |
+| `category_in_use` / `last_image` / `image_required` | 409 | admin deletion and publishing guards |
+| `unsupported_image` / `file_too_large` / `image_too_small` | 415 / 413 / 422 | image upload refused |
 | `rate_limited` | 429 | back off; `Retry-After` header |
 
 Production responses never carry stack traces or SQL (§12.7).

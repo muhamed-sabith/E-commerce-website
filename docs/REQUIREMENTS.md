@@ -219,6 +219,14 @@ All admin surfaces require authenticated **ADMIN** role, enforced on **every req
 ### 3.11 Settings
 
 * Store name/tagline (HEYRAH, "Wings of Style" — spelling locked), default low-stock threshold, currency formatting (the currency itself is fixed: INR — not a setting), default sorting option, page size. Brand colors/logo are **not** editable from settings (brand rules in AGENTS.md are permanent).
+* **As built (Phase 10):** editable — low-stock threshold, shipping flat rate, free-shipping threshold, default sort, page size. Read-only — name, tagline, currency (shown for reference). Currency formatting is fixed `en-IN` INR; it is not a setting.
+
+### 3.13 As built (Phase 10)
+
+* Shared login + server role gate (decision 4); admins get an "Admin" link in the storefront header and a separate `/admin` shell (sidebar, identity, sign out; collapsible menu below 1024px). Routes: `/admin`, `/admin/orders[/:id]`, `/admin/products[/new|/:id]`, `/admin/categories`, `/admin/inventory`, `/admin/users`, `/admin/settings`.
+* Products start **inactive**; going active requires ≥ 1 image (§4), and the last image of an active product can't be removed. Deletion: archive when the product has order lines **or** stock history (both append-only), otherwise hard delete.
+* Stock changes only through audited adjustments (restock / damaged / correction / set count); opening stock is recorded as `initial`.
+* Blocking needs a reason (3–255 chars), applies to customers only, and ends every session immediately. Admin accounts are bootstrap-only (§11.5); no role changes in the UI or API.
 
 ### 3.12 Admin authorization matrix
 
@@ -349,6 +357,8 @@ High → Low produces `1000, 250, 100, 25`.
 * **Order number:** human-readable, unique, documented format (e.g. `HEY-YYMMDD-####`).
 * **Ordering channel:** orders are created directly on the HEYRAH website only. No WhatsApp ordering, no off-site ordering flows in v1.
 * **Receipt:** order confirmation page shows everything; email receipts out of scope v1 (§18).
+* **Implementation note (Phase 10):** admin cancellation (from `pending` or `confirmed`) restores every ordered unit in the same transaction with `cancel_restore` audit rows, exactly once; manual `PENDING_PAYMENT → PAID` is the admin endpoint described in API_CONTRACT §4. Refunds for cancelled paid orders stay offline (out of scope §18) and the history note says so.
+* **Implementation note (Phase 9):** checkout, order creation, atomic inventory deduction with row locks, order snapshots, the status ladder, `PENDING_PAYMENT`, `PAYMENT_MODE=demo|manual`, the `PaymentService` / `DemoPaymentProvider` abstraction, and the demo payment page are built as specified here; details in ARCHITECTURE §5/§5.5 and API_CONTRACT §3. On a failed placement the cart is left untouched and the checkout page re-reads it with per-line reasons.
 
 ---
 
@@ -545,8 +555,8 @@ HEYRAH v1 is a two-surface commerce platform: a premium, accessible, teal-and-go
 | # | Decision | Recommendation |
 |---|---|---|
 | 1 | Discount model per product | fixed amount OR percent, one type per product |
-| 2 | Low-stock default threshold | 5 units |
-| 3 | Shipping v1 | flat rate + free-above-threshold (amounts from business) |
+| 2 | Low-stock default threshold | 5 units — implemented as the default; admin-configurable in Settings |
+| 3 | Shipping v1 | flat rate + free-above-threshold — **implemented with placeholder amounts ₹99 flat, free at ₹2,999** (env defaults; admin-configurable in Settings since Phase 10); final amounts still to come from the business |
 | 4 | Admin login surface | shared login + role gate |
 | 5 | Popularity sort | defer until real order data exists |
 | 6 | Hosting/infrastructure provider | decide before deployment phase |
