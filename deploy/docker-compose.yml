@@ -26,6 +26,11 @@ services:
       DATABASE_URL: postgresql://postgres@postgres:5432/heyrah_dev
       SESSION_SECRET: replace-me-in-real-deployments-with-32-plus-chars
       API_ALLOWED_ORIGIN: http://localhost:8080
+      # Production posture: demo payment simulator unmounted.
+      PAYMENT_MODE: manual
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -39,3 +44,4 @@ services:
 
 volumes:
   pgdata:
+  uploads:

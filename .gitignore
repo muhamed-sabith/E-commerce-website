@@ -11,6 +11,9 @@ out/
 .env.*
 !.env.example
 
+# Admin-uploaded product images (runtime data, never source)
+/api/uploads/
+
 # Local infrastructure (portable PostgreSQL binaries + data files)
 /local/
 
