@@ -51,6 +51,19 @@ model StoreSettings {
   @@map("store_settings")
 }
 
+/// §2.17 store_pages — business-provided policy/contact text, one row per
+/// fixed slug (CHECK in SQL). No row = not published. Plain text only
+/// (rendered as escaped paragraphs; never HTML).
+model StorePage {
+  slug      String   @id @db.VarChar(20)
+  title     String   @db.VarChar(80)
+  body      String   @db.Text
+  updatedBy BigInt?  @map("updated_by") @db.BigInt
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("store_pages")
+}
+
 /// §2.16 admin_audit_log — append-only record of admin actions that have no
 /// dedicated audit table (catalog, categories, images, users, settings).
 /// Order/payment moves live in order_status_history; stock in stock_adjustments.

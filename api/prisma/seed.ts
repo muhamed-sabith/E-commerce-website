@@ -5,6 +5,7 @@
 //   tie-breaks — equal final prices sharing created_at (order settles on id DESC)
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
+import { seedImagePath, writeSeedArtwork } from "./seed-artwork.js";
 
 const prisma = new PrismaClient();
 
@@ -39,11 +40,13 @@ const slugify = (name: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
+// Placeholder artwork (not photography) is generated into the uploads tree
+// by seed-artwork.ts; these rows point at it. Real photos replace them via
+// the admin image manager.
 function imagesFor(sku: string, name: string): SeedImage[] {
-  const base = sku.toLowerCase().replace(/-/g, "");
   return [
-    { filePath: `products/${base}-1.svg`, altText: `${name} — primary view`, position: 0 },
-    { filePath: `products/${base}-2.svg`, altText: `${name} — alternate view`, position: 1 },
+    { filePath: seedImagePath(sku, 1), altText: `${name}, placeholder artwork`, position: 0 },
+    { filePath: seedImagePath(sku, 2), altText: `${name}, alternate placeholder`, position: 1 },
   ];
 }
 
@@ -408,6 +411,8 @@ async function seedInner(): Promise<void> {
   );
   // Store settings back to the documented defaults (no row = defaults).
   await prisma.storeSettings.deleteMany();
+  // Policy/contact pages are business content: a reset leaves them unpublished.
+  await prisma.storePage.deleteMany();
   await prisma.productSpecification.deleteMany();
   await prisma.productImage.deleteMany();
   await prisma.product.deleteMany();
@@ -430,6 +435,7 @@ async function seedInner(): Promise<void> {
     const category = await prisma.category.findUnique({ where: { slug: group.category } });
     if (!category) throw new Error(`seed: missing category ${group.category}`);
     for (const p of group.items) {
+      await writeSeedArtwork(p.sku, p.name, group.category);
       await prisma.product.create({
         data: {
           name: p.name,
