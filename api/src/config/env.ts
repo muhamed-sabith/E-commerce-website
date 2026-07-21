@@ -15,6 +15,15 @@ const envSchema = z.object({
   SESSION_ABSOLUTE_TTL_HOURS: z.coerce.number().int().positive().default(168),
   /** Idle expiry: session dies after this much inactivity. */
   SESSION_IDLE_TTL_HOURS: z.coerce.number().int().positive().default(24),
+  /** Admin sessions end after this much inactivity (REQUIREMENTS §3.1: shorter than customers). */
+  ADMIN_SESSION_IDLE_TTL_MINUTES: z.coerce.number().int().positive().default(60),
+  /**
+   * Public storefront origin, used for canonical URLs, the sitemap, and
+   * robots.txt. Defaults to the allowed web origin.
+   */
+  PUBLIC_SITE_URL: z.string().url().optional(),
+  /** Public catalog read limit per IP per minute (search burst-cooling, API_CONTRACT §7). */
+  CATALOG_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
   /** Auth rate-limit ceiling per IP per window (API_CONTRACT §9 default: 10). */
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
   /** Auth rate-limit window in ms. */

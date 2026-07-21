@@ -8,7 +8,7 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "test": "vitest run",
-    "test:db": "cross-env DATABASE_URL=postgresql://postgres@localhost:5432/heyrah_test vitest run --no-file-parallelism",
+    "test:db": "cross-env DATABASE_URL=postgresql://postgres@localhost:5432/heyrah_test CATALOG_RATE_LIMIT_MAX=300 vitest run --no-file-parallelism",
     "seed": "tsx prisma/seed.ts",
     "bootstrap:admin": "tsx scripts/bootstrap-admin.ts",
     "lint": "eslint .",
@@ -21,7 +21,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
-    "multer": "2.0.2",
+    "multer": "2.4.0",
     "sharp": "0.35.5",
     "zod": "^3.25.0"
   },

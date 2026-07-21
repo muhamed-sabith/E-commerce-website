@@ -38,6 +38,7 @@ function newToken(): string {
 
 const absoluteTtlMs = () => env.SESSION_ABSOLUTE_TTL_HOURS * 60 * 60 * 1000;
 const idleTtlMs = () => env.SESSION_IDLE_TTL_HOURS * 60 * 60 * 1000;
+const adminIdleTtlMs = () => env.ADMIN_SESSION_IDLE_TTL_MINUTES * 60 * 1000;
 
 /**
  * Create a session. `userId` null = guest session.
@@ -64,10 +65,16 @@ export async function resolveSession(token: string): Promise<SessionRecord | nul
   const id = hashToken(token);
   const now = new Date();
 
-  const session = await prisma.session.findUnique({ where: { id } });
+  const session = await prisma.session.findUnique({
+    where: { id },
+    include: { user: { select: { role: true } } },
+  });
   if (!session) return null;
 
-  if (session.expiresAt <= now || session.lastSeenAt.getTime() + idleTtlMs() <= now.getTime()) {
+  // Admin sessions idle out sooner (REQUIREMENTS §3.1). The role is read from
+  // the users row on every resolution, so a promotion/demotion applies at once.
+  const idle = session.user?.role === "ADMIN" ? adminIdleTtlMs() : idleTtlMs();
+  if (session.expiresAt <= now || session.lastSeenAt.getTime() + idle <= now.getTime()) {
     await prisma.session.delete({ where: { id } }).catch(() => undefined);
     return null;
   }

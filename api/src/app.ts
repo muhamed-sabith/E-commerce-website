@@ -6,8 +6,10 @@ import { env } from "./config/env.js";
 import { UPLOAD_ROOT } from "./lib/images.js";
 import { errorHandler, notFoundHandler } from "./middleware/error.js";
 import { requestId } from "./middleware/request-id.js";
+import { securityHeaders } from "./middleware/security-headers.js";
 import { healthRouter } from "./routes/health.routes.js";
 import { createV1Router } from "./routes/index.js";
+import { rootSeoRouter } from "./routes/site.routes.js";
 import type { PaymentService } from "./services/payment.service.js";
 
 /**
@@ -23,7 +25,12 @@ export function createApp(options: { payments?: PaymentService } = {}): express.
 
   app.disable("x-powered-by");
 
+  // Behind one reverse proxy (nginx in compose): trust it for req.ip so the
+  // rate limiters key on the real client, not the proxy.
+  app.set("trust proxy", env.NODE_ENV === "production" ? 1 : false);
+
   app.use(requestId);
+  app.use(securityHeaders);
   // Cookie-bearing CORS: exactly the web origin, nothing wildcarded.
   app.use(cors({ origin: env.API_ALLOWED_ORIGIN, credentials: true }));
   app.use(express.json({ limit: "1mb" }));
@@ -52,6 +59,7 @@ export function createApp(options: { payments?: PaymentService } = {}): express.
   );
 
   app.use(healthRouter);
+  app.use(rootSeoRouter);
   app.use("/api/v1", createV1Router(options.payments));
 
   app.use(notFoundHandler);
