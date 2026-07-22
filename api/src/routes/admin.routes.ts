@@ -49,5 +49,9 @@ export function createAdminRouter(payments: PaymentService): Router {
   router.get("/settings", c.getSettings);
   router.put("/settings", c.putSettings);
 
+  router.get("/pages", c.listPages);
+  router.put("/pages/:slug", c.putPage);
+  router.delete("/pages/:slug", c.deletePage);
+
   return router;
 }

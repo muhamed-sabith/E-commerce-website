@@ -23,6 +23,7 @@ import {
 import { adminCatalogService } from "../services/admin-catalog.service.js";
 import type { createAdminOpsService } from "../services/admin-ops.service.js";
 import { getSettings, settingsUpdateSchema, settingsView, updateSettings } from "../services/settings.service.js";
+import { pageUpdateSchema, parseSlug, storePageService } from "../services/store-pages.service.js";
 
 /**
  * Admin controllers (API_CONTRACT §4). HTTP only: parse with strict Zod →
@@ -152,5 +153,14 @@ export function adminControllers(ops: Ops) {
     // settings
     getSettings: handler(async () => settingsView(await getSettings())),
     putSettings: handler(async (req) => settingsView(await updateSettings(actor(req), settingsUpdateSchema.parse(req.body ?? {})))),
+
+    // policy + contact pages
+    listPages: handler(async () => storePageService.list()),
+    putPage: handler(async (req) => {
+      const slug = parseSlug(req.params.slug);
+      const { body } = pageUpdateSchema.parse(req.body ?? {});
+      return { page: await storePageService.save(actor(req), slug, body) };
+    }),
+    deletePage: handler(async (req) => ({ page: await storePageService.unpublish(actor(req), parseSlug(req.params.slug)) })),
   };
 }

@@ -6,11 +6,13 @@ import { catalogRouter } from "./catalog.routes.js";
 import { customerRouter } from "./customer.routes.js";
 import { createOrderRouter } from "./order.routes.js";
 import { createAdminRouter } from "./admin.routes.js";
+import { createSiteRouter } from "./site.routes.js";
 
 /**
  * /api/v1 — the versioned business surface (docs/API_CONTRACT.md).
  * Live: catalog, auth/account, cart, wishlist/addresses, checkout, orders,
- * demo payment (demo mode only), admin (/admin/*, ADMIN sessions only).
+ * demo payment (demo mode only), admin (/admin/*, ADMIN sessions only),
+ * public site data (store facts, SEO meta).
  */
 export function createV1Router(payments: PaymentService = paymentService): Router {
   const v1 = Router();
@@ -19,6 +21,7 @@ export function createV1Router(payments: PaymentService = paymentService): Route
   v1.use(customerRouter);
   v1.use(createOrderRouter(payments));
   v1.use("/admin", createAdminRouter(payments));
+  v1.use(createSiteRouter(payments));
   v1.use(catalogRouter);
   return v1;
 }

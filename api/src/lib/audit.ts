@@ -25,14 +25,16 @@ export type AdminAction =
   | "category.reassign"
   | "user.block"
   | "user.unblock"
-  | "settings.update";
+  | "settings.update"
+  | "page.update"
+  | "page.unpublish";
 
 export function recordAdminAction(
   db: Db,
   row: {
     actorId: bigint;
     action: AdminAction;
-    targetType: "product" | "image" | "category" | "user" | "settings";
+    targetType: "product" | "image" | "category" | "user" | "settings" | "page";
     targetId?: bigint | string | null;
     details?: Prisma.InputJsonValue;
   },
