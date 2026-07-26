@@ -1,4 +1,4 @@
-# HEYRAH
+﻿# HEYRAH
 
 **Wings of Style** — a premium e-commerce platform.
 
@@ -92,9 +92,14 @@ npm run test:e2e    # Playwright smoke (boots api + web itself; start PostgreSQL
 ```bash
 cd deploy
 docker compose up --build
-# web → http://localhost:8080, api → http://localhost:4000
+# web (storefront + /api proxy) http://localhost:8080
+docker compose exec api npm run seed   # optional demo catalog
 ```
 
-Docker was not available in the original development environment, so the
-compose file is provided but unverified locally — verify on a machine with
-Docker before relying on it.
+The web container runs `web/server/serve.mjs`: it injects route-specific SEO
+tags into the HTML and proxies `/api`, `/assets/products`, `/sitemap.xml` and
+`/robots.txt` to the api container, so the browser uses a single origin. The
+api container applies migrations on start. Docker was not available in the
+development environment, so the compose stack has not been run end to end;
+the production web server itself is covered by `web/server/serve.test.ts` and
+was run locally against the real API.

@@ -1,13 +1,16 @@
+# Local/demo stack. Not a production deployment as-is: replace SESSION_SECRET,
+# set real origins, put TLS in front, and use managed Postgres with a password.
 services:
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: postgres
       POSTGRES_DB: heyrah_dev
-      # Dev-only container; override in real deployments.
+      # Dev-only container; use password auth in real deployments.
       POSTGRES_HOST_AUTH_METHOD: trust
+    # Bound to localhost only.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -17,30 +20,39 @@ services:
       retries: 10
 
   api:
-    build: ../api
-    ports:
-      - "4000:4000"
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
     environment:
       NODE_ENV: production
       PORT: 4000
       DATABASE_URL: postgresql://postgres@postgres:5432/heyrah_dev
       SESSION_SECRET: replace-me-in-real-deployments-with-32-plus-chars
+      # The browser only talks to the web origin; the web server proxies /api.
       API_ALLOWED_ORIGIN: http://localhost:8080
+      PUBLIC_SITE_URL: http://localhost:8080
       # Production posture: demo payment simulator unmounted.
       PAYMENT_MODE: manual
-      UPLOAD_DIR: /app/uploads
+      UPLOAD_DIR: /app/api/uploads
     volumes:
-      - uploads:/app/uploads
+      # Single-server image storage. Multi-instance deployments need shared/object storage.
+      - uploads:/app/api/uploads
     depends_on:
       postgres:
         condition: service_healthy
 
   web:
-    build: ../web
+    build:
+      context: ..
+      dockerfile: web/Dockerfile
+    environment:
+      PORT: 8080
+      API_ORIGIN: http://api:4000
     ports:
-      - "8080:80"
+      - "8080:8080"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   pgdata:
