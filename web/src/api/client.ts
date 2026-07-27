@@ -6,8 +6,8 @@
  * JS-readable CSRF cookie in X-CSRF-Token (double-submit). The web app never
  * sees or stores the session cookie value.
  */
-export const API_BASE_URL: string =
-  import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+// An empty VITE_API_URL means same-origin (production: the web server proxies /api).
+export const API_BASE_URL: string = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
 interface HealthResponse {
   status: string;
