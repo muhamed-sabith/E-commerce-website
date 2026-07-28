@@ -1,4 +1,4 @@
-﻿/* The bag â€” modern feminine restraint: ivory + blush hairlines on a clean
+/* The bag — modern feminine restraint: ivory + blush hairlines on a clean
    light page, serif display for the title and total, teal for actions,
    rose only for savings, gold reserved for one fine rule above the total. */
 
@@ -314,7 +314,7 @@
 
 .bag__summary {
   position: sticky;
-  top: var(--space-5);
+  top: 92px;
   background: var(--color-ivory-50);
   border: 1px solid var(--color-blush-200);
   border-radius: var(--radius-lg);

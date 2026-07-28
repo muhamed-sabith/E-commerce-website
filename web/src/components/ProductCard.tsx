@@ -6,13 +6,20 @@ import type { ProductListItem } from "../api/catalog";
 import "./product-card.css";
 
 /**
- * Product card (DESIGN_SYSTEM §5): image-first, name, INR price with
- * strikethrough when discounted, availability state as text + color.
- * The link and the add-to-bag action are siblings (a button can't live
- * inside an anchor), so both stay independently keyboard reachable.
+ * Product card: portrait image first, then category, name, price (with the
+ * original struck through and the saving named when discounted), and stock
+ * stated in words. Save and Add to bag are siblings of the product link
+ * (no nested interactive elements), so each is reachable on its own.
  */
-export function ProductCard({ product }: { product: ProductListItem }) {
+export function ProductCard({ product, headingLevel = 2 }: { product: ProductListItem; headingLevel?: 2 | 3 }) {
   const discounted = product.finalPrice.amount !== product.price.amount;
+  const Heading = headingLevel === 3 ? "h3" : "h2";
+  const saving =
+    product.discount.type === "percent"
+      ? `${Number(product.discount.value.amount)}% off`
+      : product.discount.type === "fixed"
+        ? `${formatINR(product.discount.value.amount)} off`
+        : null;
 
   return (
     <article className="product-card">
@@ -20,12 +27,15 @@ export function ProductCard({ product }: { product: ProductListItem }) {
         <SaveToggle productId={product.id} productName={product.name} variant="compact" />
       </div>
       <Link to={`/product/${product.slug}`} className="product-card__link">
-        <div className="product-card__media">
+        <div className={`${product.image ? "product-card__media" : "product-card__media is-fallback"}${product.inStock ? "" : " is-out"}`}>
           {product.image ? (
             <img
               src={product.image.src}
               alt={product.image.alt}
               loading="lazy"
+              decoding="async"
+              width="900"
+              height="1200"
               className="product-card__img"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
@@ -33,20 +43,22 @@ export function ProductCard({ product }: { product: ProductListItem }) {
               }}
             />
           ) : null}
+          {saving ? <span className="product-card__flag">{saving}</span> : null}
         </div>
         <div className="product-card__body">
           <p className="product-card__category">{product.categoryName}</p>
-          <h3 className="product-card__name">{product.name}</h3>
+          <Heading className="product-card__name">{product.name}</Heading>
           <p className="product-card__price price">
+            <span className="product-card__final">
+              {discounted ? <span className="sr-only">Now </span> : null}
+              {formatINR(product.finalPrice.amount)}
+            </span>
             {discounted ? (
               <>
-                <span className="sr-only">Was </span>
+                <span className="sr-only">, was </span>
                 <s className="price-strike">{formatINR(product.price.amount)}</s>
-                <span className="sr-only">, now </span>
               </>
             ) : null}
-            <span className="product-card__final">{formatINR(product.finalPrice.amount)}</span>
-            {discounted ? <span className="product-card__badge">Sale</span> : null}
           </p>
           <p className={product.inStock ? "product-card__stock" : "product-card__stock is-out"}>
             {product.inStock ? "In stock" : "Out of stock"}
@@ -54,12 +66,7 @@ export function ProductCard({ product }: { product: ProductListItem }) {
         </div>
       </Link>
       <div className="product-card__actions">
-        <AddToBagButton
-          productId={product.id}
-          productName={product.name}
-          available={product.inStock}
-          variant="compact"
-        />
+        <AddToBagButton productId={product.id} productName={product.name} available={product.inStock} variant="compact" />
       </div>
     </article>
   );

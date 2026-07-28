@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "./client";
 /**
  * Typed catalog API surface (API_CONTRACT §2/§6). Money arrives as exact
  * decimal strings — the web app never computes prices, it only displays.
@@ -22,6 +23,8 @@ export interface ProductListItem {
 
 export interface ProductListResult {
   items: ProductListItem[];
+  /** The sort the server applied (the store default when none was requested). */
+  sort: CatalogSort;
   page: number;
   pageSize: number;
   totalItems: number;
@@ -73,7 +76,8 @@ function toQueryString(params: CatalogParams): string {
   if (params.in_stock) search.set("in_stock", "true");
   if (params.sort) search.set("sort", params.sort);
   if (params.page && params.page > 1) search.set("page", String(params.page));
-  if (params.page_size && params.page_size !== 12) search.set("page_size", String(params.page_size));
+  // Omitted page size → the store's configured default (admin Settings).
+  if (params.page_size) search.set("page_size", String(params.page_size));
   return search.toString();
 }
 
@@ -91,7 +95,7 @@ export const catalogApi = {
 };
 
 async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${import.meta.env.VITE_API_URL ?? "http://localhost:4000"}${path}`, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "include",
   });
   if (!res.ok) {
