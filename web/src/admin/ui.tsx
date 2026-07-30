@@ -80,12 +80,15 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
  * users start at the top). The first load of the app is left alone.
  */
 let focusPending = false;
-let firstLoad = true;
-export function markNavigation() {
-  if (firstLoad) {
-    firstLoad = false;
+let lastPath: string | null = null;
+/** Call with the current pathname; repeated calls for the same path (StrictMode) are ignored. */
+export function markNavigation(pathname: string) {
+  if (lastPath === null) {
+    lastPath = pathname;
     return;
   }
+  if (pathname === lastPath) return;
+  lastPath = pathname;
   focusPending = true;
 }
 

@@ -221,6 +221,14 @@ export interface StoreSettings {
   fixed: { brand: { name: string; tagline: string }; currency: string };
 }
 
+export interface StorePage {
+  slug: "privacy" | "terms" | "returns" | "shipping" | "contact";
+  title: string;
+  published: boolean;
+  body: string | null;
+  updatedAt: string | null;
+}
+
 export interface SettingsInput {
   low_stock_threshold: number;
   shipping_flat_rate: string;
@@ -302,6 +310,11 @@ export const adminApi = {
     apiRequest(`${A}/users/${id(uid)}/block`, { method: "POST", body: { reason } }),
   unblockUser: (uid: string): Promise<{ user: AdminUser }> =>
     apiRequest(`${A}/users/${id(uid)}/unblock`, { method: "POST" }),
+
+  listPages: (): Promise<{ items: StorePage[] }> => apiRequest(`${A}/pages`),
+  savePage: (slug: string, body: string): Promise<{ page: StorePage }> =>
+    apiRequest(`${A}/pages/${id(slug)}`, { method: "PUT", body: { body } }),
+  unpublishPage: (slug: string): Promise<{ page: StorePage }> => apiRequest(`${A}/pages/${id(slug)}`, { method: "DELETE" }),
 
   getSettings: (): Promise<StoreSettings> => apiRequest(`${A}/settings`),
   putSettings: (body: SettingsInput): Promise<StoreSettings> => apiRequest(`${A}/settings`, { method: "PUT", body }),

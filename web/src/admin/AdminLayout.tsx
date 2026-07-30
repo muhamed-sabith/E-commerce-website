@@ -22,6 +22,7 @@ const NAV = [
   { to: "/admin/categories", label: "Categories" },
   { to: "/admin/inventory", label: "Inventory" },
   { to: "/admin/users", label: "Customers" },
+  { to: "/admin/pages", label: "Pages" },
   { to: "/admin/settings", label: "Settings" },
 ];
 
@@ -37,7 +38,7 @@ export function AdminLayout() {
   // when it mounts (PageHeader), which also covers pages that load first.
   useEffect(() => {
     setOpen(false);
-    markNavigation();
+    markNavigation(location.pathname);
   }, [location.pathname]);
 
   useEffect(() => {
