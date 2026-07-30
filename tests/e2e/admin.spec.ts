@@ -413,7 +413,8 @@ test.describe("admin layout", () => {
   });
 
   test("no horizontal overflow at desktop, tablet, and phone widths", async () => {
-    const paths = ["/admin", "/admin/orders", "/admin/products", "/admin/inventory", "/admin/users", "/admin/settings", "/admin/categories"];
+    test.setTimeout(120_000); // 8 pages × 5 widths
+    const paths = ["/admin", "/admin/orders", "/admin/products", "/admin/inventory", "/admin/users", "/admin/settings", "/admin/categories", "/admin/pages"];
     for (const width of [1440, 1280, 1024, 820, 375]) {
       await page.setViewportSize({ width, height: 900 });
       for (const p of paths) {

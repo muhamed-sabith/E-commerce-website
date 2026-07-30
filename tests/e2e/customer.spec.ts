@@ -170,7 +170,8 @@ test.describe("wishlist", () => {
     // an out-of-stock piece is listed, labelled, and not purchasable
     await page.goto("/product/trench-overcoat");
     await (await readyToggle(page)).click();
-    await expect(page.getByTestId("save-toggle")).toHaveAttribute("aria-pressed", "true", { timeout: 10_000 });
+    // the product's own toggle (the "More …" rail below has its own)
+    await expect(page.locator(".pdp__actions").getByTestId("save-toggle")).toHaveAttribute("aria-pressed", "true", { timeout: 10_000 });
     await page.goto("/wishlist");
     const trench = page.getByTestId("wish-card").filter({ hasText: "Trench Overcoat" });
     await expect(trench.getByTestId("wish-availability")).toHaveText("Out of stock", { timeout: 10_000 });

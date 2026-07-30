@@ -520,7 +520,8 @@ describe("account integration", () => {
   it("links to the wishlist and addresses", async () => {
     renderAt("/account");
     expect(await screen.findByRole("heading", { name: "Your account" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /^Addresses/ }).getAttribute("href")).toBe("/account/addresses");
+    const main = within(screen.getByRole("main"));
+    expect(main.getByRole("link", { name: /^Addresses/ }).getAttribute("href")).toBe("/account/addresses");
     const wishLinks = screen.getAllByRole("link", { name: /^Wishlist/ });
     expect(wishLinks.every((l) => l.getAttribute("href") === "/wishlist")).toBe(true);
   });

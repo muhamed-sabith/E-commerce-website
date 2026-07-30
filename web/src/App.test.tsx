@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -114,8 +114,9 @@ describe("guest header state", () => {
   it("shows Sign in for guests and the name + Sign out when authenticated", async () => {
     authMocks.me.mockResolvedValue({ user: sampleUser });
     renderApp("/");
-    await waitFor(() => expect(screen.getByRole("link", { name: "Amira" })).toBeTruthy());
-    expect(screen.getByRole("button", { name: "Sign out" })).toBeTruthy();
+    const banner = screen.getByRole("banner");
+    await waitFor(() => expect(within(banner).getByRole("link", { name: "Amira" })).toBeTruthy());
+    expect(within(banner).getByRole("button", { name: "Sign out" })).toBeTruthy();
   });
 });
 
@@ -127,7 +128,7 @@ describe("LoginPage", () => {
     );
     renderApp("/login");
 
-    await user.type(screen.getByLabelText("Email address"), "amira@example.com");
+    await user.type(await screen.findByLabelText("Email address"), "amira@example.com");
     await user.type(screen.getByLabelText("Password"), "wrong-pass");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -145,12 +146,12 @@ describe("LoginPage", () => {
     authMocks.me.mockResolvedValue({ user: sampleUser });
     renderApp("/login");
 
-    await user.type(screen.getByLabelText("Email address"), "amira@example.com");
+    await user.type(await screen.findByLabelText("Email address"), "amira@example.com");
     await user.type(screen.getByLabelText("Password"), "Str0ngPass!x");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => expect(authMocks.login).toHaveBeenCalled());
-    expect(await screen.findByRole("link", { name: "Amira" })).toBeTruthy();
+    expect(await within(screen.getByRole("banner")).findByRole("link", { name: "Amira" })).toBeTruthy();
   });
 });
 
@@ -161,13 +162,13 @@ describe("RegisterPage", () => {
     authMocks.me.mockResolvedValue({ user: sampleUser });
     renderApp("/register");
 
-    await user.type(screen.getByLabelText("Full name"), "Amira");
+    await user.type(await screen.findByLabelText("Full name"), "Amira");
     await user.type(screen.getByLabelText("Email address"), "amira@example.com");
     await user.type(screen.getByLabelText("Password"), "Str0ngPass!x");
     await user.click(screen.getByRole("button", { name: "Create account" }));
 
     await waitFor(() => expect(authMocks.register).toHaveBeenCalled());
-    expect(await screen.findByRole("link", { name: "Amira" })).toBeTruthy();
+    expect(await within(screen.getByRole("banner")).findByRole("link", { name: "Amira" })).toBeTruthy();
   });
 
   it("surfaces the duplicate-email error", async () => {
@@ -177,7 +178,7 @@ describe("RegisterPage", () => {
     );
     renderApp("/register");
 
-    await user.type(screen.getByLabelText("Full name"), "Amira");
+    await user.type(await screen.findByLabelText("Full name"), "Amira");
     await user.type(screen.getByLabelText("Email address"), "amira@example.com");
     await user.type(screen.getByLabelText("Password"), "Str0ngPass!x");
     await user.click(screen.getByRole("button", { name: "Create account" }));

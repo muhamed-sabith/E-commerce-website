@@ -512,6 +512,6 @@ describe("orders", () => {
   it("the account page links to orders", async () => {
     renderAt("/account");
     expect(await screen.findByRole("heading", { name: "Your account" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /^Orders/ }).getAttribute("href")).toBe("/orders");
+    expect(within(screen.getByRole("main")).getByRole("link", { name: /^Orders/ }).getAttribute("href")).toBe("/orders");
   });
 });

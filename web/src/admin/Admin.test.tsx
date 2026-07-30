@@ -224,7 +224,7 @@ describe("admin routing + authorization UI", () => {
   it("an admin gets the shell with identity, navigation, and sign out", async () => {
     renderAt("/admin");
     const nav = await screen.findByRole("navigation", { name: "Admin" });
-    for (const label of ["Dashboard", "Orders", "Products", "Categories", "Inventory", "Customers", "Settings"]) {
+    for (const label of ["Dashboard", "Orders", "Products", "Categories", "Inventory", "Customers", "Pages", "Settings"]) {
       expect(within(nav).getByRole("link", { name: label })).toBeInTheDocument();
     }
     expect(within(nav).getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");

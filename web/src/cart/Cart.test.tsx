@@ -389,7 +389,7 @@ describe("authenticated bag + merge", () => {
       line({ id: "2", name: "Midnight Evening Gown", qty: 3, price: "10000.00" }),
     ];
 
-    await user.type(screen.getByLabelText("Email address"), "amira@example.com");
+    await user.type(await screen.findByLabelText("Email address"), "amira@example.com");
     await user.type(screen.getByLabelText("Password"), "Str0ngPass!x");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
