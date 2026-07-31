@@ -62,7 +62,7 @@
 |---|---|---|
 | id | BIGSERIAL PK | |
 | product_id | BIGINT FK → products | |
-| file_path | VARCHAR(255) | storage path, generated filename (§12.6) |
+| file_path | VARCHAR(255) | storage path, generated filename (§12.6): `products/<product-id>/<uuid>.webp` (admin uploads) or `products/seed/<sku>-<n>.webp` (dev/demo placeholder artwork, Phase 11) |
 | alt_text | VARCHAR(200) | accessibility |
 | position | INT | ordered gallery; position 0 = primary; UNIQUE(product_id, position) |
 
@@ -140,6 +140,10 @@ id PK, product_id FK, delta INT, resulting_quantity INT, reason VARCHAR(40) CHEC
 ### 2.15 store_settings (Phase 10)
 
 Single row (`id = 1`, CHECK): `low_stock_threshold` INT (0–1000), `shipping_flat_rate` / `shipping_free_threshold` DECIMAL(10,2) ≥ 0, `default_sort` CHECK in the catalog sort keys, `page_size` INT (4–48), `updated_by`, `updated_at`. No row = documented defaults. No brand or currency columns — those are constants.
+
+### 2.17 store_pages (Phase 11)
+
+slug VARCHAR(20) PK (CHECK in `privacy, terms, returns, shipping, contact`), title, body TEXT (non-blank, ≤ 20,000 chars; plain text, never HTML), updated_by, updated_at. No row = not published. Business-authored; the seed leaves it empty.
 
 ### 2.16 admin_audit_log (Phase 10)
 

@@ -221,6 +221,16 @@ All admin surfaces require authenticated **ADMIN** role, enforced on **every req
 * Store name/tagline (HEYRAH, "Wings of Style" — spelling locked), default low-stock threshold, currency formatting (the currency itself is fixed: INR — not a setting), default sorting option, page size. Brand colors/logo are **not** editable from settings (brand rules in AGENTS.md are permanent).
 * **As built (Phase 10):** editable — low-stock threshold, shipping flat rate, free-shipping threshold, default sort, page size. Read-only — name, tagline, currency (shown for reference). Currency formatting is fixed `en-IN` INR; it is not a setting.
 
+### 3.14 Storefront, SEO and hardening as built (Phase 11)
+
+* **Homepage (§2.1) built:** brand opening, New in (newest in-stock), Shop by category (live counts), an under-₹1,000 edit, "How HEYRAH works" (facts the system enforces), provisional brand note. No reviews/ratings/customer counts/delivery promises (none exist).
+* **Navigation (§2.2):** information strip with the configured shipping rule, compact sticky header, mobile drawer (dialog: focus in, Escape, focus restored), footer with real links only, `/help` page describing actual behaviour; returns policy, delivery times, contact details and brand story are marked "not yet published".
+* **SEO (§14):** server-injected per-route meta + JSON-LD (real values only, no ratings), canonical rules, 404 status for unknown pages, `noindex` on private and filtered routes, `/sitemap.xml`, `/robots.txt`. Body content remains client-rendered (documented limitation, ARCHITECTURE §2).
+* **Admin sessions (§3.1):** idle out after 60 minutes (`ADMIN_SESSION_IDLE_TTL_MINUTES`); customers 24 hours.
+* **Rate limiting (§12.7):** public catalog reads limited per IP (default 300/min).
+* **Policy + contact pages:** `/privacy`, `/terms`, `/returns`, `/shipping-policy`, `/contact` exist and render text the business publishes in admin → Pages; no policy wording is supplied by the system. Unpublished pages say so and aren't linked or indexed.
+* **Structured data** carries only verified values: name, description, images, SKU, category, brand, INR price, availability (no condition, ratings or reviews).
+
 ### 3.13 As built (Phase 10)
 
 * Shared login + server role gate (decision 4); admins get an "Admin" link in the storefront header and a separate `/admin` shell (sidebar, identity, sign out; collapsible menu below 1024px). Routes: `/admin`, `/admin/orders[/:id]`, `/admin/products[/new|/:id]`, `/admin/categories`, `/admin/inventory`, `/admin/users`, `/admin/settings`.

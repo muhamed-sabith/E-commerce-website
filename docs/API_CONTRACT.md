@@ -2,7 +2,7 @@
 
 **Status:** v0.4 draft — guest cart, demo payment model, conventions; framework-neutral (Express implements it; contract unchanged by the stack change)
 **Depends on:** `docs/REQUIREMENTS.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE_SCHEMA.md`
-**Implemented so far:** §1 auth/account, §2 catalog, §3 cart, wishlist, addresses, checkout, orders, demo payment, §4 admin (Phase 10).
+**Implemented so far:** §1 auth/account, §2 catalog, §3 cart, wishlist, addresses, checkout, orders, demo payment, §4 admin (Phase 10), §4b public site data + SEO (Phase 11).
 
 Base: `/api/v1` — JSON over HTTPS. Auth: cookie sessions. **Every visitor, including guests, is issued a session cookie automatically** — guests hold it unauthenticated (their temporary cart keys off it), protected endpoints require an authenticated session. Role checks are server-side on every endpoint below; the "Auth" column describes intent, never a client-side promise.
 
@@ -144,6 +144,19 @@ Rules:
 - Orders: `GET /admin/orders?q=&status=&payment=&page=` (q matches order number, customer name or email; newest first; 24 per page). `POST /admin/orders/{id}/status {status: confirmed|shipped|delivered|cancelled, note?}` — the ladder only; repeats, skips, and moves out of delivered/cancelled → `409 illegal_transition`. Cancelling restores stock (see ARCHITECTURE §5). `POST /admin/orders/{id}/payment-status {status: "PAID", note?}` — anything else → 400; already PAID → `409 already_paid`; cancelled → `409 not_payable`.
 - Users: `GET /admin/users?q=&status=active|blocked` (explicit columns — no password hash ever selected; includes `orderCount`, `lastOrderAt`). `POST /admin/users/{id}/block {reason (3–255)}` revokes every session in the same transaction; admins and self → `409 cannot_block_admin` / `cannot_block_self`; repeat → `409 already_blocked`. `POST …/unblock {}` → `409 not_blocked` if not blocked. No role-change endpoint exists.
 - Settings: `GET` → `{settings {lowStockThreshold, shippingFlatRate, shippingFreeThreshold, defaultSort, pageSize, updatedAt, isDefault}, fixed {brand {name, tagline}, currency}}`. `PUT` requires all five values (threshold 0–1000, money ≤ 2 dp, sort key, page size 4–48); brand/currency keys → 400. Settings drive the catalog default sort/page size (`GET /products` now reports the applied `sort`), checkout shipping, and low-stock flags.
+
+## 4b. Public site data (Phase 11)
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/store` | `{brand {name, tagline}, currency, shipping {flatRate, freeThreshold}, paymentMode, pages[]}` — the only facts the storefront states about shipping/payment; `pages` = published policy/contact slugs |
+| GET | `/pages/{slug}` | `slug` ∈ `privacy, terms, returns, shipping, contact` → `{page {slug, title, published, body, updatedAt}}`; unpublished → `published: false, body: null`; other slugs 404 |
+| GET / PUT / DELETE | `/admin/pages`, `/admin/pages/{slug}` | ADMIN + CSRF: list all five; `PUT {body}` (plain text, 20–20,000 chars, strict) publishes/updates; `DELETE` unpublishes; audited (`page.update` / `page.unpublish`) |
+| GET | `/seo/meta?path=` | `{status, title, description, canonical, robots, ogType, image, jsonLd[], heading, summary, links[]}` for a same-site path (absolute URLs ignored). Active products/categories only; unknown → `status: 404`, `noindex, follow`; private prefixes (`/login`, `/register`, `/account`, `/cart`, `/checkout`, `/payment`, `/orders`, `/wishlist`, `/admin`) → `noindex, nofollow`, no canonical |
+| GET | `/sitemap.xml` (root, not `/api/v1`) | home, `/products`, `/help`, published policy pages (`/privacy`, `/terms`, `/returns`, `/shipping-policy`, `/contact`), active categories, active products in active categories; canonical absolute URLs from `PUBLIC_SITE_URL`, no query strings |
+| GET | `/robots.txt` (root) | disallows the private prefixes and `/api/`; points at the sitemap |
+
+`GET /products` without `page_size` now uses the store's page-size setting (was a fixed 12); the response's `sort` names the applied sort. Public catalog reads are rate-limited per IP (`429 rate_limited` + `Retry-After`).
 
 ## 5. The sorting contract (critical)
 

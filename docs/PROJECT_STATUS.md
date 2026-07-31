@@ -71,20 +71,27 @@
 - Fixes found in testing: route-change focus landing before the page loaded, badges stretching in grid cells, stacked-row labels on mobile, Playwright races on the shared dev DB (suite now runs one file at a time)
 - Verified: API 215/215 (64 admin: authz matrix on 24 endpoints, malicious uploads, parallel cancels/payments/adjustments), web Vitest 95/95, Playwright 60/60 (twice); typecheck (api, web, root), lint, build clean; no overflow at 1440/1280/1024/820/375
 
-## Current next phase
-**Phase 11 — Storefront polish, SEO, and launch hardening** (homepage, mobile navigation drawer, real product imagery, per-route meta, security headers/CSP, rate limits, deployment checklist) — to be specified
+## Phase 11 — Storefront polish, SEO & launch hardening — COMPLETE
+- Storefront: info strip (configured shipping rule via new `GET /store`), compact sticky header with official monogram, mobile drawer (`<dialog>`), footer of real links, `/help` (actual behaviour; unpublished policies marked as such), new homepage (brand opening, New in, Shop by category with live counts, under-₹1,000 edit, "How HEYRAH works", provisional brand note), portrait product cards, catalog chips + collapsible filters + scoped category landings, PDP with sticky info, reassurance lines and "More from" rail, 404 page. Reference site used for patterns only (strip, category discovery, merchandising rails, trust/about, footer IA); no layout, copy, assets or Compare/Quick view copied
+- Images: root cause = seed rows pointed at `products/*.svg` that never existed; seed now generates labelled placeholder plates (WebP, `uploads/products/seed/`) served by the existing `/assets/products` route
+- SEO: `api/services/seo.service.ts` (meta, canonical, robots, JSON-LD Product/Offer/BreadcrumbList/Organization from verified rows only — no itemCondition, ratings or reviews), `/sitemap.xml`, `/robots.txt`; production web server `web/server/serve.mjs` injects head tags + `<noscript>` summary, returns 404 for unknown pages, `X-Robots-Tag` on private routes, 301 canonical redirects, document CSP, proxies `/api` + assets; client `lib/head.ts` keeps tags in sync on navigation
+- Hardening: API security headers, catalog read rate limit (300/min/IP), `trust proxy` in production, admin idle timeout 60 min (customers 24 h), multer 2.4.0 (8 DoS advisories fixed), Docker files rebuilt for the workspace (non-root, healthchecks, `migrate deploy` on start), nginx removed, code-split private/admin routes (entry JS 312 kB / 97 kB gzip)
+- Policy + contact pages: migration `store_pages`; `/privacy`, `/terms`, `/returns`, `/shipping-policy`, `/contact` render text published in admin → Pages (plain text, audited); unpublished = honest pending state, noindex, no footer link, not in sitemap. No policy text was written by the system
+- Touch targets: header search field + button, bag pill, catalog chips raised to 44px (header height unchanged)
+- Verified: API 236/236, web Vitest 109/109 (incl. 11 web-server tests), Playwright 99/99 (incl. 41 storefront: axe-core WCAG 2.1 A/AA on 11 pages + open drawer = 0 violations, 44px targets at 1440/1280/1024/375, no overflow at 1440/1280/1024/820/768/430/390/375); typecheck (api, web, root), lint, build clean; `serve.mjs` run manually against the built bundle + real API
 
-## Remaining issues / notes
-- Phases 9 and 10 are not yet committed or pushed
-- Shipping amounts (₹99 / ₹2,999) are placeholders pending a business decision; now editable in admin Settings
-- No automatic release of stock held by unpaid orders; an admin must cancel them
-- Refunds for cancelled paid orders are offline (flagged in the order history note)
-- Seed product images (SVG paths) don't exist; storefront shows placeholders, admin shows "File unavailable" until real images are uploaded
-- Uploaded images live on the API's local disk (`api/uploads`, gitignored); a volume or object storage is needed before multi-instance deployment
-- Admin sessions use the same idle expiry as customers (shorter admin expiry recommended in §3.1, not built)
-- Address form offers 8 countries (API accepts any ISO alpha-2); postal format strict only for India
-- Mobile header is tall at 375px (~340px) — no collapsible menu yet
-- Auth rate limit (30/min locally) can fail back-to-back full e2e runs within 60s
-- Local Postgres must be started detached (`Start-Process pg_ctl …`) or it crash-loops
-- Accessibility verified by automation + keyboard e2e only; no screen-reader pass yet
-- Guest-merge keys off the pre-rotation cookie, not the `rotated_from` audit chain
+## Current next phase
+**Launch readiness** (business inputs + infrastructure, not more features): real product photography, the business publishing its privacy/terms/returns/shipping/contact text in admin → Pages, final shipping amounts, hosting + TLS + secrets, a Docker run of the compose stack, and a manual screen-reader pass
+
+## Remaining issues / notes (not launch-ready until the first five are resolved)
+- Docker compose stack NOT RUN (Docker unavailable in this environment); Dockerfiles and compose are written but unverified
+- No real product photography; seed placeholders are clearly labelled "Photography coming soon"
+- Policy/contact pages are built but **empty until the business publishes its own text** (admin → Pages); legal wording must come from the business, not the system
+- `npm audit`: 3 high (deepmerge-ts via `prisma` CLI dev tooling, pinned by @prisma/config 6.19.3 — fixed only in a Prisma major) and 2 moderate (vitest/@vitest/mocker — fixed only in vitest 5, breaking). Both dev-only; runtime deps clean apart from `prisma` being in the api devDependencies tree
+- No manual screen-reader pass (automated axe + keyboard e2e only)
+- Body content is client-rendered: non-JS crawlers get injected meta + `<noscript>` summary only
+- Rate limiters are in-process (single API instance); uploads on local disk/volume (single server only)
+- Shipping ₹99 / ₹2,999 still placeholders (editable in admin Settings); no automatic release of stock held by unpaid orders; refunds offline
+- Phase 11 work is not yet committed
+- Local dev: Postgres must be started detached (`Start-Process pg_ctl …`); `api/.env` sets `CATALOG_RATE_LIMIT_MAX=5000` for the e2e suite; Playwright runs one file at a time (shared dev DB)
+- Address form offers 8 countries (API accepts any ISO alpha-2); guest-merge keys off the pre-rotation cookie

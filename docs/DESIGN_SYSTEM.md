@@ -46,6 +46,19 @@
 - **Empty/error/loading states:** defined per REQUIREMENTS §13 — skeletons for grids, spinner-in-button for actions, honest empty states with next actions.
 - **Demo payment page:** full teal-900 premium frame, order summary card, mock method selector (Demo Card / Demo UPI / Demo QR), persistent "DEMO / TEST MODE" indicator, restrained three-step processing sequence — this page is the design system's showcase moment. *As built:* blush "DEMO / TEST MODE" band under the header; ivory summary card; the payment sheet is a white dialog with a teal-900 header band (wordmark, gold test badge, serif amount) over a teal-tinted backdrop, docking to the bottom edge under 520px; progress is a teal ring that closes into a green check; motion 180–420ms, transform/opacity only, none under reduced motion.
 
+## 5b. Storefront as built (Phase 11)
+
+- **Brand marks.** `web/public/brand-mark.webp` (monogram) and `brand-lockup.webp` (monogram + HEYRAH + "Wings of Style") are straight crops of `public/brand/heyrah-logo-reference.jpg` — not redrawn, never stretched (rendered by height or width only, native aspect ratio). Their artwork ground is a deeper teal than `--color-teal-900`, so they carry `.brand-art` (`mix-blend-mode: lighten`) to sit on teal surfaces without a visible box.
+- **Chrome.** One-line ivory information strip (the configured shipping rule, from `GET /store`); sticky teal header 68px desktop / 60px mobile with monogram + spaced serif wordmark, category links (gold 1px underline on the active one), pill search, account, wishlist, bag pill with gold count. Below 1024px: Menu button → left drawer (`<dialog>`, ivory, serif category list). Footer: teal, lockup + Shop / Account / Information columns — only real routes.
+- **Homepage.** Teal brand opening (lockup + gold serif "Wings of Style" + one gold primary and one ghost action) → New in (8 newest in-stock; 4 on small screens) → Shop by category (portrait tiles with live counts, cover = that category's newest product) on blush → Under ₹1,000 (excludes pieces already in New in; hidden if empty) → How HEYRAH works (four facts the system enforces, gold top rules) → short provisional brand note. No ratings, reviews, counts, testimonials or delivery promises.
+- **Product card.** Borderless; 3:4 portrait image (12px radius), saving named on a white chip ("15% off" / "₹500.00 off"), sold-out images at 60% opacity with "Out of stock" in text; category · serif name · price (final first, original struck through) · stock in words; full-width quiet "Add to bag" outline button; Save as a 44px corner button.
+- **Catalog.** Serif title, category chips (scroll row on phones), 220px filter rail on desktop, a Filters (n) toggle below 1024px; 3 / 2 columns; category landings are scoped (breadcrumb + "Browse every category").
+- **Product detail.** 7:5 split, sticky info column; serif name, final price + struck original + rose saving pill; Add to bag + Save; three gold-dash reassurance lines from real behaviour; description, details table (SKU last); "More {category}" rail.
+- **Touch targets.** Header search field + submit, bag pill and catalog category chips are 44px tall (header height unchanged at 68px).
+- **Policy pages.** Same reading layout as Help (720px measure, serif headings); unpublished state uses the gold-ruled pending note.
+- **Placeholder imagery.** Seed products show generated plates (fabric-toned weave, gold frame, product name, "Photography coming soon"), never fake photographs.
+- **Type.** Display = `--font-display` (Iowan Old Style / Palatino / Georgia) at 400 for titles; body = Segoe UI/system stack; form controls inherit the body face.
+
 ## 6. Admin UI
 
 - Clean, dense, professional; brand applied subtly (teal sidebar/accents, light content area); tables over cards for lists; no decorative motion; keyboard-first operation.
