@@ -25,6 +25,11 @@ async function main() {
     console.error("[bootstrap:admin] ADMIN_PASSWORD must be at least 10 characters");
     process.exit(1);
   }
+  // Production admins need a real password: no template/example values.
+  if (process.env.NODE_ENV === "production" && (password.length < 14 || /replace-me|change-me|example|password|admin/i.test(password))) {
+    console.error("[bootstrap:admin] in production ADMIN_PASSWORD must be 14+ characters and not a template/example value");
+    process.exit(1);
+  }
 
   const passwordHash = await hashPassword(password);
   const admin = await prisma.user.upsert({

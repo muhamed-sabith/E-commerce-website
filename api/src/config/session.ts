@@ -1,4 +1,5 @@
 import type { CookieOptions } from "express";
+import { env } from "./env.js";
 
 /**
  * Session cookie contract (REQUIREMENTS §11.4, API_CONTRACT §7):
@@ -8,13 +9,15 @@ import type { CookieOptions } from "express";
  */
 export const sessionCookieOptions = (): CookieOptions => ({
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
+  // Secure in production � enforced: production also refuses to boot with a
+  // non-https origin (config/env.ts), so this can't silently be off.
+  secure: env.NODE_ENV === "production",
   sameSite: "strict",
   path: "/",
-  maxAge: 1000 * 60 * 60 * 24 * 7,
+  // Browser lifetime matches the server-side absolute ceiling.
+  maxAge: env.SESSION_ABSOLUTE_TTL_HOURS * 60 * 60 * 1000,
 });
 
 export const SESSION_COOKIE_NAME = "heyrah_session";
 export const CSRF_COOKIE_NAME = "heyrah_csrf";
 export const CSRF_HEADER_NAME = "x-csrf-token";
-export const SESSION_SECRET = process.env.SESSION_SECRET ?? "";

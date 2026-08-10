@@ -1,9 +1,8 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, rm, writeFile } from "node:fs/promises";
-import path from "node:path";
 import sharp, { type Metadata } from "sharp";
-import { env } from "../config/env.js";
 import { ApiError } from "../middleware/error.js";
+import { imageStorage, UPLOAD_ROOT } from "./storage.js";
+
+export { UPLOAD_ROOT };
 
 /**
  * Product image intake (REQUIREMENTS §12.6). Nothing a client sends is
@@ -15,10 +14,9 @@ import { ApiError } from "../middleware/error.js";
  *   3. the image is re-encoded to WebP — EXIF/GPS/ICC/XMP metadata and any
  *      trailing bytes (polyglot payloads) do not survive re-encoding;
  *   4. the stored name is generated (`<uuid>.webp`) inside a per-product
- *      directory; client names never reach the filesystem.
+ *      directory; client names never reach the filesystem (lib/storage.ts).
  */
 
-export const UPLOAD_ROOT = path.resolve(env.UPLOAD_DIR);
 const MAX_PIXELS = 40_000_000; // ~6300×6300
 const MAX_EDGE = 2000; // stored images are fitted inside 2000×2000
 const MIN_EDGE = 200; // smaller than this is not a usable product photo
@@ -77,27 +75,12 @@ export async function processProductImage(buf: Buffer): Promise<{ data: Buffer; 
   }
 }
 
-/** Write under products/<productId>/<uuid>.webp; returns the stored relative path. */
-export async function storeProductImage(productId: bigint, data: Buffer): Promise<string> {
-  const rel = `products/${productId.toString()}/${randomUUID()}.webp`;
-  const abs = resolveStored(rel);
-  if (!abs) throw new Error("generated path escaped the upload root");
-  await mkdir(path.dirname(abs), { recursive: true });
-  await writeFile(abs, data, { flag: "wx" }); // never overwrite
-  return rel;
+/** Store re-encoded bytes; returns the key (relative path) for product_images.file_path. */
+export function storeProductImage(productId: bigint, data: Buffer): Promise<string> {
+  return imageStorage.put(productId, data);
 }
 
-/** Only paths this module generated are ever touched on disk. */
-const STORED = /^products\/\d{1,18}\/[0-9a-f-]{36}\.webp$/;
-
-function resolveStored(rel: string): string | null {
-  if (!STORED.test(rel)) return null;
-  const abs = path.resolve(UPLOAD_ROOT, rel);
-  return abs.startsWith(UPLOAD_ROOT + path.sep) ? abs : null;
-}
-
-/** Best-effort removal after the DB change committed (seed paths are skipped). */
-export async function removeStoredImage(rel: string): Promise<void> {
-  const abs = resolveStored(rel);
-  if (abs) await rm(abs, { force: true }).catch(() => undefined);
+/** Best-effort removal after the DB change committed (seed paths are ignored). */
+export function removeStoredImage(key: string): Promise<void> {
+  return imageStorage.remove(key);
 }
