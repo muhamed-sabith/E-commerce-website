@@ -2,7 +2,7 @@ import path from "node:path";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
-import { env } from "./config/env.js";
+import { env, trustProxyHops } from "./config/env.js";
 import { UPLOAD_ROOT } from "./lib/images.js";
 import { errorHandler, notFoundHandler } from "./middleware/error.js";
 import { requestId } from "./middleware/request-id.js";
@@ -25,15 +25,16 @@ export function createApp(options: { payments?: PaymentService } = {}): express.
 
   app.disable("x-powered-by");
 
-  // Behind one reverse proxy (nginx in compose): trust it for req.ip so the
-  // rate limiters key on the real client, not the proxy.
-  app.set("trust proxy", env.NODE_ENV === "production" ? 1 : false);
+  // Trust exactly TRUST_PROXY_HOPS reverse proxies for req.ip (compose: 1,
+  // the web server) so rate limiters key on the real client. Never `true`:
+  // that would honour any client-supplied X-Forwarded-For.
+  app.set("trust proxy", trustProxyHops);
 
   app.use(requestId);
   app.use(securityHeaders);
   // Cookie-bearing CORS: exactly the web origin, nothing wildcarded.
   app.use(cors({ origin: env.API_ALLOWED_ORIGIN, credentials: true }));
-  app.use(express.json({ limit: "1mb" }));
+  app.use(express.json({ limit: "100kb" }));
   // Cookie foundation for server-side sessions (options in config/session.ts;
   // session store in lib/session.ts, identity in middleware/auth.ts).
   app.use(cookieParser());

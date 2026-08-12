@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { env } from "../config/env.js";
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from "../config/session.js";
 import { newCsrfToken, tokensEqual } from "../lib/session.js";
 
@@ -53,7 +54,7 @@ export function issueCsrfToken(req: Request, res: Response): string {
 function csrfCookieOptions() {
   return {
     httpOnly: false, // double-submit requires the SPA to read it
-    secure: process.env.NODE_ENV === "production",
+    secure: env.NODE_ENV === "production",
     sameSite: "strict" as const,
     path: "/",
     maxAge: 1000 * 60 * 60 * 24 * 7,

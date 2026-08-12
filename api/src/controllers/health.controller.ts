@@ -8,6 +8,8 @@ import { checkDatabase } from "../services/health.service.js";
  */
 export async function getHealth(_req: Request, res: Response): Promise<void> {
   const database = await checkDatabase();
+  // Never cached by browsers/proxies: it must reflect this instant.
+  res.set("Cache-Control", "no-store");
   res.status(database === "up" ? 200 : 503).json({
     status: database === "up" ? "ok" : "degraded",
     service: "heyrah-api",

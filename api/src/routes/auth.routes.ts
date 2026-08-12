@@ -33,6 +33,13 @@ const authLimiter = rateLimit({
 // rotate the existing (guest) session and /me can answer guests with null.
 authRouter.use(ensureSession);
 
+// Identity, session, and CSRF responses are per-visitor: never stored by
+// browsers' shared caches or any proxy.
+authRouter.use(["/auth", "/account"], (_req, res, next) => {
+  res.set("Cache-Control", "private, no-store");
+  next();
+});
+
 authRouter.post("/auth/register", authLimiter, csrfProtect, register);
 authRouter.post("/auth/login", authLimiter, csrfProtect, login);
 authRouter.post("/auth/logout", csrfProtect, logout);

@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { env } from "../config/env.js";
 
 /**
  * Baseline security headers for every API response (REQUIREMENTS §12.7–12.8).
@@ -15,7 +16,7 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
   if (!req.path.startsWith("/assets/")) {
     res.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
   }
-  if (process.env.NODE_ENV === "production") {
+  if (env.NODE_ENV === "production") {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }
   next();
