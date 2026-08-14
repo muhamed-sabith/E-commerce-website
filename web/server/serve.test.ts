@@ -54,11 +54,14 @@ beforeAll(async () => {
     res.setHeader("Set-Cookie", "heyrah_session=abc; HttpOnly");
     let body = "";
     req.on("data", (c) => (body += c));
-    req.on("end", () => res.end(JSON.stringify({ proxied: req.url, method: req.method, body, fwd: req.headers["x-forwarded-for"] ?? null })));
+    req.on("end", () =>
+      res.end(JSON.stringify({ proxied: req.url, method: req.method, body, fwd: req.headers["x-forwarded-for"] ?? null, rid: req.headers["x-request-id"] ?? null })),
+    );
   });
   await new Promise<void>((r) => api.listen(0, r));
   const apiPort = (api.address() as { port: number }).port;
 
+  writeFileSync(path.join(dist, "static", "app-abc.js.map"), "{}");
   web = createWebServer({ dist, apiOrigin: `http://127.0.0.1:${apiPort}` });
   await new Promise<void>((r) => web.listen(0, r));
   base = `http://127.0.0.1:${(web.address() as { port: number }).port}`;
@@ -159,6 +162,36 @@ describe("HTTP behaviour", () => {
       await fetch(`${base}${p}`);
     }
     expect(apiHits).toEqual(["POST /api/v1/cart/items", "GET /assets/products/seed/a.webp", "GET /sitemap.xml", "GET /robots.txt"]);
+  });
+
+  it("drops client-supplied X-Forwarded-For (edge mode) and forwards a request id", async () => {
+    const res = await fetch(`${base}/api/v1/whoami`, { headers: { "X-Forwarded-For": "6.6.6.6" } });
+    const body = await res.json();
+    expect(body.fwd).not.toContain("6.6.6.6");
+    expect(body.rid).toMatch(/^[0-9a-f-]{36}$/);
+    expect(res.headers.get("x-request-id")).toBe(body.rid);
+  });
+
+  it("gzips HTML and static assets when asked, never serves source maps", async () => {
+    const html = await fetch(`${base}/product/silk-slip-dress`, { headers: { "Accept-Encoding": "gzip" } });
+    expect(html.headers.get("content-encoding")).toBe("gzip");
+    expect(await html.text()).toContain("<title>"); // fetch decompresses transparently
+    const js = await fetch(`${base}/static/app-abc.js`, { headers: { "Accept-Encoding": "gzip" } });
+    expect(js.headers.get("content-encoding")).toBe("gzip");
+    expect(js.headers.get("vary")).toBe("Accept-Encoding");
+    const map = await fetch(`${base}/static/app-abc.js.map`);
+    expect(map.headers.get("content-type")).toContain("text/html");
+    expect(await map.text()).not.toBe("{}");
+  });
+
+  it("health and non-page responses carry security headers", async () => {
+    const h = await fetch(`${base}/healthz-web`);
+    expect(await h.text()).toBe("ok");
+    expect(h.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(h.headers.get("cache-control")).toBe("no-store");
+    const post = await fetch(`${base}/products`, { method: "POST" });
+    expect(post.status).toBe(405);
+    expect(post.headers.get("x-frame-options")).toBe("DENY");
   });
 
   it("falls back to the generic shell if the API is down", async () => {

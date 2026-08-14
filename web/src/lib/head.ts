@@ -7,9 +7,9 @@ import { useEffect } from "react";
  * between routes. Values mirror the server's rules (api seo.service).
  */
 
-export const SITE_ORIGIN: string =
-  (import.meta.env.VITE_SITE_URL as string | undefined)?.replace(/\/+$/, "") ??
-  (typeof window !== "undefined" ? window.location.origin : "");
+/** Canonical origin: VITE_SITE_URL when set (production builds), else the page's own origin. */
+const configuredOrigin = ((import.meta.env.VITE_SITE_URL as string | undefined) ?? "").trim().replace(/\/+$/, "");
+export const SITE_ORIGIN: string = configuredOrigin || (typeof window !== "undefined" ? window.location.origin : "");
 
 export interface HeadSpec {
   title: string;

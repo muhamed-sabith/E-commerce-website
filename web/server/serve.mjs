@@ -11,6 +11,8 @@
 //     the API, so the browser talks to one origin (cookies stay first-party);
 //   • security headers (CSP, frame-ancestors, nosniff, referrer, permissions).
 import http from "node:http";
+import { randomUUID } from "node:crypto";
+import { gzipSync } from "node:zlib";
 import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,6 +30,10 @@ const TYPES = {
   ".woff2": "font/woff2",
   ".txt": "text/plain; charset=utf-8",
 };
+
+const COMPRESSIBLE = new Set([".html", ".js", ".css", ".json", ".svg", ".txt"]);
+const SAFE_ID = /^[A-Za-z0-9-]{8,64}$/;
+const acceptsGzip = (req) => /\bgzip\b/.test(String(req.headers["accept-encoding"] ?? ""));
 
 const PROXIED = [/^\/api\//, /^\/assets\/products\//, /^\/sitemap\.xml$/, /^\/robots\.txt$/];
 
@@ -131,7 +137,14 @@ export function canonicalRedirect(urlPath, search) {
   return p !== urlPath ? `${p || "/"}${search}` : null;
 }
 
-export function createWebServer({ dist, apiOrigin, browserApiOrigin = "", fetchImpl = fetch, metaTimeoutMs = 1500 }) {
+export function createWebServer({
+  dist,
+  apiOrigin,
+  browserApiOrigin = "",
+  fetchImpl = fetch,
+  metaTimeoutMs = 1500,
+  trustUpstreamProxy = false,
+}) {
   const shellPath = path.join(dist, "index.html");
   const shell = readFileSync(shellPath, "utf8");
   const api = new URL(apiOrigin);
@@ -155,11 +168,15 @@ export function createWebServer({ dist, apiOrigin, browserApiOrigin = "", fetchI
     }
   }
 
-  function proxy(req, res) {
-    const headers = { ...req.headers, host: api.host };
-    const prior = req.headers["x-forwarded-for"];
+  function proxy(req, res, requestId) {
+    const headers = { ...req.headers, host: api.host, "x-request-id": requestId };
+    // Forwarding chain: by default this server is the edge, so a client-sent
+    // X-Forwarded-For is discarded (it would let anyone spoof their IP past
+    // the API's rate limits). Behind a TLS proxy/load balancer set
+    // TRUST_UPSTREAM_PROXY=1 to keep the chain that proxy built.
+    const prior = trustUpstreamProxy ? req.headers["x-forwarded-for"] : undefined;
     headers["x-forwarded-for"] = prior ? `${prior}, ${req.socket.remoteAddress}` : req.socket.remoteAddress;
-    headers["x-forwarded-proto"] = req.headers["x-forwarded-proto"] ?? "http";
+    headers["x-forwarded-proto"] = (trustUpstreamProxy && req.headers["x-forwarded-proto"]) || "http";
     const upstream = http.request(
       { hostname: api.hostname, port: api.port || 80, path: req.url, method: req.method, headers },
       (up) => {
@@ -174,7 +191,7 @@ export function createWebServer({ dist, apiOrigin, browserApiOrigin = "", fetchI
     req.pipe(upstream);
   }
 
-  function staticFile(urlPath, res) {
+  function staticFile(urlPath, req, res) {
     let rel;
     try {
       rel = decodeURIComponent(urlPath);
@@ -183,48 +200,82 @@ export function createWebServer({ dist, apiOrigin, browserApiOrigin = "", fetchI
     }
     const file = path.resolve(dist, "." + rel);
     if (!file.startsWith(distRoot) || file === shellPath) return false;
+    // Source maps are never served from production builds.
+    if (file.endsWith(".map")) return false;
     if (!existsSync(file) || !statSync(file).isFile()) return false;
-    const type = TYPES[path.extname(file)] ?? "application/octet-stream";
-    res.writeHead(200, {
+    const ext = path.extname(file);
+    const type = TYPES[ext] ?? "application/octet-stream";
+    const headers = {
       ...sec,
       "Content-Type": type,
       // Hashed build output is immutable; anything else revalidates.
       "Cache-Control": rel.startsWith("/static/") ? "public, max-age=31536000, immutable" : "public, max-age=3600",
-    });
-    createReadStream(file).pipe(res);
+      Vary: "Accept-Encoding",
+    };
+    if (COMPRESSIBLE.has(ext) && acceptsGzip(req)) {
+      res.writeHead(200, { ...headers, "Content-Encoding": "gzip" });
+      res.end(req.method === "HEAD" ? undefined : gzipCached(file));
+      return true;
+    }
+    res.writeHead(200, headers);
+    if (req.method === "HEAD") res.end();
+    else createReadStream(file).pipe(res);
     return true;
   }
 
+  const gzipCache = new Map();
+  function gzipCached(file) {
+    let buf = gzipCache.get(file);
+    if (!buf) {
+      buf = gzipSync(readFileSync(file));
+      gzipCache.set(file, buf);
+    }
+    return buf;
+  }
+
   return http.createServer(async (req, res) => {
-    const url = new URL(req.url ?? "/", "http://local");
+    let url;
+    try {
+      url = new URL(req.url ?? "/", "http://local");
+    } catch {
+      res.writeHead(400, { ...sec, "Content-Type": "text/plain" });
+      res.end("Bad request");
+      return;
+    }
+    const incoming = req.headers["x-request-id"];
+    const requestId = trustUpstreamProxy && typeof incoming === "string" && SAFE_ID.test(incoming) ? incoming : randomUUID();
+    res.setHeader("X-Request-Id", requestId);
     if (url.pathname === "/healthz-web") {
-      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.writeHead(200, { ...sec, "Content-Type": "text/plain", "Cache-Control": "no-store" });
       res.end("ok");
       return;
     }
-    if (PROXIED.some((r) => r.test(url.pathname))) return proxy(req, res);
+    if (PROXIED.some((r) => r.test(url.pathname))) return proxy(req, res, requestId);
     if (req.method !== "GET" && req.method !== "HEAD") {
-      res.writeHead(405, { Allow: "GET, HEAD" });
+      res.writeHead(405, { ...sec, Allow: "GET, HEAD" });
       res.end();
       return;
     }
     const redirect = canonicalRedirect(url.pathname, url.search);
     if (redirect) {
-      res.writeHead(301, { Location: redirect });
+      res.writeHead(301, { ...sec, Location: redirect });
       res.end();
       return;
     }
-    if (path.extname(url.pathname) && staticFile(url.pathname, res)) return;
+    if (path.extname(url.pathname) && staticFile(url.pathname, req, res)) return;
 
     const m = await meta(url.pathname + url.search);
     const html = renderShell(shell, m);
+    const gzip = acceptsGzip(req);
     res.writeHead(m.status === 404 ? 404 : 200, {
       ...sec,
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-cache",
+      Vary: "Accept-Encoding",
+      ...(gzip ? { "Content-Encoding": "gzip" } : {}),
       ...(m.robots.startsWith("noindex") ? { "X-Robots-Tag": m.robots } : {}),
     });
-    res.end(req.method === "HEAD" ? undefined : html);
+    res.end(req.method === "HEAD" ? undefined : gzip ? gzipSync(html) : html);
   });
 }
 
@@ -236,6 +287,19 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     dist: process.env.WEB_DIST ?? path.join(here, "..", "dist"),
     apiOrigin: process.env.API_ORIGIN ?? "http://localhost:4000",
     browserApiOrigin: process.env.BROWSER_API_ORIGIN ?? "",
+    trustUpstreamProxy: process.env.TRUST_UPSTREAM_PROXY === "1",
   });
-  server.listen(port, () => console.log(`[heyrah-web] serving on http://localhost:${port}`));
+  server.headersTimeout = 20_000;
+  server.requestTimeout = 30_000;
+  server.keepAliveTimeout = 65_000;
+  server.listen(port, () => console.log(JSON.stringify({ time: new Date().toISOString(), level: "info", msg: "listening", service: "heyrah-web", port })));
+  // Graceful stop: finish in-flight requests, then exit (bounded).
+  const stop = (signal) => {
+    console.log(JSON.stringify({ time: new Date().toISOString(), level: "info", msg: "shutting down", service: "heyrah-web", signal }));
+    setTimeout(() => process.exit(1), 10_000).unref();
+    server.close(() => process.exit(0));
+    server.closeIdleConnections?.();
+  };
+  process.on("SIGTERM", () => stop("SIGTERM"));
+  process.on("SIGINT", () => stop("SIGINT"));
 }

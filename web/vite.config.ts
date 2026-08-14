@@ -10,6 +10,8 @@ export default defineConfig({
     // Hashed bundles live under /static so they never collide with
     // /assets/products/* (product images, served by the API).
     assetsDir: "static",
+    // No source maps in the production bundle (the web server also refuses .map).
+    sourcemap: false,
   },
   server: {
     port: 5173,

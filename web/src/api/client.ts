@@ -101,9 +101,11 @@ export async function apiRequest<T>(
 
 /** Bootstrap: mint guest session + CSRF token before first mutation. */
 export async function ensureCsrf(): Promise<void> {
-  await fetch(`${API_BASE_URL}/api/v1/auth/csrf`, { credentials: "include" }).catch(
-    () => undefined,
-  );
+  // Read the (tiny) body to completion: the response is `no-store`, so an
+  // unread body would keep the request — and its connection — open.
+  await fetch(`${API_BASE_URL}/api/v1/auth/csrf`, { credentials: "include" })
+    .then((r) => r.text())
+    .catch(() => undefined);
 }
 
 export const apiClient = {
