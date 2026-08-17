@@ -1,0 +1,82 @@
+name: CI
+
+# Verification only: no deployment, no secrets. The database is a throwaway
+# service container; all credentials below are CI-local.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_DB: heyrah_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d heyrah_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:ci-only@localhost:5432/heyrah_test
+      SESSION_SECRET: ci-only-session-secret-0123456789abcdef
+      API_ALLOWED_ORIGIN: http://localhost:5173
+      PAYMENT_MODE: demo
+      CATALOG_RATE_LIMIT_MAX: "300"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Prisma client + migrations (deploy, never dev/reset)
+        working-directory: api
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
+
+      - name: Typecheck (api, web, e2e)
+        run: |
+          npm run typecheck
+          npx tsc -p tsconfig.json
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Web tests (Vitest)
+        run: npm run test --workspace web
+
+      - name: API tests (Vitest + real PostgreSQL)
+        working-directory: api
+        # Same DB the migrations ran against; serial files (shared database).
+        run: npx vitest run --no-file-parallelism
+
+      - name: Build
+        run: npm run build
+
+      - name: Dependency audit (report only)
+        run: npm audit --omit=dev || true
