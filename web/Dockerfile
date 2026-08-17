@@ -12,6 +12,9 @@ COPY web web
 WORKDIR /app/web
 # Same-origin API in production: the browser calls /api on the web origin.
 ENV VITE_API_URL=""
+# Canonical origin baked into the client head sync; must equal the API's PUBLIC_SITE_URL.
+ARG VITE_SITE_URL=""
+ENV VITE_SITE_URL=$VITE_SITE_URL
 RUN npm run build
 
 FROM node:22-alpine
@@ -19,6 +22,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/web/dist ./dist
 COPY web/server ./server
+# No runtime npm dependencies: serve.mjs uses Node built-ins only.
 USER node
 EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=3s --retries=5 CMD wget -qO- http://127.0.0.1:8080/healthz-web || exit 1

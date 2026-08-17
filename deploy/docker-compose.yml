@@ -1,20 +1,28 @@
-# Local/demo stack. Not a production deployment as-is: replace SESSION_SECRET,
-# set real origins, put TLS in front, and use managed Postgres with a password.
+# HEYRAH local/demo stack — NOT a production deployment.
+#
+# It runs the production images with NODE_ENV=development so the API's
+# production checks (https origins, real secrets, DB password, proxy hops)
+# don't block a localhost run. For a real deployment use
+# deploy/docker-compose.prod.yml (or your platform's equivalent) with values
+# from docs/PRODUCTION_RUNBOOK.md.
+#
+# Docker runtime was not executed in the development environment (Docker
+# unavailable); this file is statically reviewed only.
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_DB: heyrah_dev
-      # Dev-only container; use password auth in real deployments.
-      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_USER: heyrah
+      POSTGRES_DB: heyrah
+      # Local-only password; never reuse outside this stack.
+      POSTGRES_PASSWORD: heyrah-local-only
     # Bound to localhost only.
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d heyrah_dev"]
+      test: ["CMD-SHELL", "pg_isready -U heyrah -d heyrah"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -24,22 +32,29 @@ services:
       context: ..
       dockerfile: api/Dockerfile
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 4000
-      DATABASE_URL: postgresql://postgres@postgres:5432/heyrah_dev
-      SESSION_SECRET: replace-me-in-real-deployments-with-32-plus-chars
+      DATABASE_URL: postgresql://heyrah:heyrah-local-only@postgres:5432/heyrah
+      SESSION_SECRET: local-only-session-secret-0123456789abcdef
       # The browser only talks to the web origin; the web server proxies /api.
       API_ALLOWED_ORIGIN: http://localhost:8080
       PUBLIC_SITE_URL: http://localhost:8080
-      # Production posture: demo payment simulator unmounted.
+      # One proxy (the web container) sits in front of the API.
+      TRUST_PROXY_HOPS: 1
+      # Demo simulator unmounted: only admin manual confirmation marks orders paid.
       PAYMENT_MODE: manual
       UPLOAD_DIR: /app/api/uploads
+      LOG_FORMAT: json
     volumes:
       # Single-server image storage. Multi-instance deployments need shared/object storage.
       - uploads:/app/api/uploads
+    # Not published: reachable only through the web container.
+    expose:
+      - "4000"
     depends_on:
       postgres:
         condition: service_healthy
+    stop_grace_period: 15s
 
   web:
     build:
@@ -49,10 +64,11 @@ services:
       PORT: 8080
       API_ORIGIN: http://api:4000
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     depends_on:
       api:
         condition: service_healthy
+    stop_grace_period: 15s
 
 volumes:
   pgdata:

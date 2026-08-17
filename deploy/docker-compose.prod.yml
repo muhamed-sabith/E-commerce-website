@@ -1,0 +1,83 @@
+# HEYRAH production-shaped stack (template). Provider-neutral.
+#
+#   docker compose --env-file deploy/.env.production -f deploy/docker-compose.prod.yml up -d --build
+#
+# Every value comes from an env file you create from deploy/.env.production.example
+# (never commit it). The API refuses to start if a value is unsafe for
+# production (see api/src/config/env.ts and docs/PRODUCTION_RUNBOOK.md).
+#
+# Assumes a TLS-terminating reverse proxy / load balancer in front of the web
+# container on 127.0.0.1:${WEB_PORT}. Chain: client → TLS proxy → web → api,
+# so TRUST_PROXY_HOPS=2 and the web server keeps the proxy's forwarding chain.
+#
+# Postgres here is for single-host deployments; a managed database only needs
+# DATABASE_URL changed and the postgres service removed.
+#
+# Docker runtime was not executed in the development environment; this file
+# is statically reviewed only.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET}
+      API_ALLOWED_ORIGIN: ${PUBLIC_SITE_URL:?set PUBLIC_SITE_URL}
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:?set PUBLIC_SITE_URL}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-2}
+      PAYMENT_MODE: manual
+      SHIPPING_FLAT_RATE: ${SHIPPING_FLAT_RATE:?set SHIPPING_FLAT_RATE}
+      SHIPPING_FREE_THRESHOLD: ${SHIPPING_FREE_THRESHOLD:?set SHIPPING_FREE_THRESHOLD}
+      UPLOAD_DIR: /app/api/uploads
+      LOG_FORMAT: json
+    volumes:
+      - uploads:/app/api/uploads
+    expose:
+      - "4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    stop_grace_period: 15s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ..
+      dockerfile: web/Dockerfile
+      args:
+        VITE_SITE_URL: ${PUBLIC_SITE_URL:?set PUBLIC_SITE_URL}
+    environment:
+      PORT: 8080
+      API_ORIGIN: http://api:4000
+      # A TLS proxy sits in front: keep its X-Forwarded-For / -Proto chain.
+      TRUST_UPSTREAM_PROXY: "1"
+    ports:
+      # Only the local TLS proxy should reach this port.
+      - "127.0.0.1:${WEB_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    stop_grace_period: 15s
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  uploads:

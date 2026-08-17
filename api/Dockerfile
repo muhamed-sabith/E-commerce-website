@@ -17,5 +17,7 @@ RUN mkdir -p /app/api/uploads && chown -R node:node /app/api/uploads
 USER node
 EXPOSE 4000
 HEALTHCHECK --interval=10s --timeout=3s --retries=6 CMD wget -qO- http://127.0.0.1:4000/healthz || exit 1
-# Apply pending migrations, then start. (Seeding is a dev/demo step, never automatic.)
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
+# Apply pending migrations (never `migrate dev`/`reset`), then start; exec so
+# the Node process receives SIGTERM directly for graceful shutdown.
+# Seeding is a dev/demo step, never automatic.
+CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/server.js"]
