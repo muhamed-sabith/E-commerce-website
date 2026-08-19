@@ -16,7 +16,8 @@
 | Validation | **Zod** | request/response schemas at every API boundary; unknown money fields in request bodies are rejected/ignored server-side |
 | Testing | **Vitest** (frontend + backend — one runner, kept consistent) + **Playwright** (browser/E2E, responsive + keyboard flows) |
 | Auth | **Secure server-side cookie sessions** — **no JWT in v1** (switching requires explicit approval later) | sessions support guests, users, admins, guest-cart identification, guest-cart merge on login, logout/revocation |
-| Deployment | **Docker + Docker Compose** | `web` (built SPA), `api` (Express), `db` (PostgreSQL) |
+| Deployment | **Docker + Docker Compose** | `web` (built SPA served by `web/server/serve.mjs`, Node built-ins only), `api` (Express), `db` (PostgreSQL); `deploy/docker-compose.yml` local/demo, `deploy/docker-compose.prod.yml` production template; steps in `docs/PRODUCTION_RUNBOOK.md` |
+| CI | **GitHub Actions** (`.github/workflows/ci.yml`) | install, Prisma `migrate deploy` on a Postgres service, typecheck, lint, web + API tests, build, audit report. No deployment |
 | Currency | **INR (₹)** — single currency, store-wide constant |
 | Payment | **No real payment gateway in v1** — no Razorpay/Stripe/PayPal, no SDK, no webhooks. Orders are created on the website with `payment_status = PENDING_PAYMENT`; a controlled test/demo payment flow may transition to `PAID`; real gateway is future scope behind the payment-service abstraction |
 

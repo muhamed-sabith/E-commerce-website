@@ -93,6 +93,15 @@ No partial orders: any line failure rolls back the entire transaction — order 
 - **Blocking** deletes every session of the user in the same transaction; `ensureSession` already ignores blocked users and login refuses them.
 - **Web.** `web/src/admin/*`: `AdminLayout` (own shell; the role check there is UX only), pages per route, `ui.tsx` shared states/badges/dialog/pagination, `api/admin.ts` typed client (multipart through the shared `apiRequest`).
 
+## 5.8 Production hardening (Phase 12)
+
+- **Config gate.** `config/env.ts` validates shape (Zod) and, for `NODE_ENV=production`, deployment rules (`productionProblems`): https + non-localhost origin-only `API_ALLOWED_ORIGIN`/`PUBLIC_SITE_URL` that are the same origin, non-placeholder `SESSION_SECRET`, password in `DATABASE_URL`, explicit `TRUST_PROXY_HOPS` (0–5, never `true`), `PAYMENT_MODE=demo` refused unless `ALLOW_DEMO_PAYMENT_IN_PRODUCTION=I_UNDERSTAND_NO_REAL_PAYMENTS`, admin idle ≤ customer idle, auth limit ≤ 100. Problems are listed by name, values never echoed; the process exits 1.
+- **Startup/shutdown (`server.ts`).** Upload root created + writability checked → DB `SELECT 1` with 10 × 2 s retries → listen (header/request/keep-alive timeouts set). SIGTERM/SIGINT: `server.close`, idle sockets closed, Prisma disconnected, 10 s forced-exit guard. Migrations are a deploy step (`prisma migrate deploy` in the image CMD), never run by the server.
+- **Errors.** Envelope unchanged; additions: malformed JSON → `400 validation_failed`, body > 100 kB → `413 payload_too_large`, Prisma connection/pool errors → `503 service_unavailable` + `Retry-After`; 500s carry `requestId`; Zod `details` are `{path, message, code}` only (no echoed input).
+- **Logging (`lib/logger.ts`).** JSON lines in production, recursive key-based redaction + free-text scrubbing (connection-string passwords, session/CSRF cookies, Postgres row dumps). Access log omits query strings. `X-Request-Id` reused from the web server when it is a safe token.
+- **Storage (`lib/storage.ts`).** `ImageStorage` interface (`put`/`remove`), `LocalDiskStorage` implementation; only generated keys are resolvable, inside the root. Future shared storage replaces the implementation, not the API.
+- **Web server.** gzip for HTML/JS/CSS/JSON/SVG (cached per file), `.map` never served, security headers on every response including 301/405/health, request-id generation/forwarding, client `X-Forwarded-For` discarded unless `TRUST_UPSTREAM_PROXY=1`, graceful SIGTERM.
+
 ## 5.7 Launch hardening (Phase 11)
 
 - **Headers.** API: `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (camera/mic/geo/payment/usb off), COOP, a deny-all CSP on JSON responses, HSTS when `NODE_ENV=production`; product images keep `default-src 'none'; sandbox`. Web server: document CSP + the same frame/referrer/permissions headers. `trust proxy` = 1 in production so rate limits key on the client IP behind the web server.

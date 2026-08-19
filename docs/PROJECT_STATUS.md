@@ -80,18 +80,27 @@
 - Touch targets: header search field + button, bag pill, catalog chips raised to 44px (header height unchanged)
 - Verified: API 236/236, web Vitest 109/109 (incl. 11 web-server tests), Playwright 99/99 (incl. 41 storefront: axe-core WCAG 2.1 A/AA on 11 pages + open drawer = 0 violations, 44px targets at 1440/1280/1024/375, no overflow at 1440/1280/1024/820/768/430/390/375); typecheck (api, web, root), lint, build clean; `serve.mjs` run manually against the built bundle + real API
 
-## Current next phase
-**Launch readiness** (business inputs + infrastructure, not more features): real product photography, the business publishing its privacy/terms/returns/shipping/contact text in admin → Pages, final shipping amounts, hosting + TLS + secrets, a Docker run of the compose stack, and a manual screen-reader pass
+## Phase 12 — Launch Readiness & Production Hardening — COMPLETE
+- Config gate: production refuses to boot on placeholder `SESSION_SECRET`, http/localhost or mismatched `API_ALLOWED_ORIGIN`/`PUBLIC_SITE_URL`, password-less `DATABASE_URL`, missing `TRUST_PROXY_HOPS`, or `PAYMENT_MODE=demo` (unless `ALLOW_DEMO_PAYMENT_IN_PRODUCTION=I_UNDERSTAND_NO_REAL_PAYMENTS`); values never echoed
+- Runtime: explicit `trust proxy` hop count; graceful SIGTERM/SIGINT (close server, disconnect Prisma, 10 s guard); startup waits for the DB (10 × 2 s) and checks `UPLOAD_DIR` writability, else exits 1; bounded `/healthz` (no-store); server timeouts; JSON body limit 100 kB
+- Errors/logs: malformed JSON → 400, oversized → 413, DB outage → 503 + `requestId`, 500s generic in production; Zod details without echoed input; structured JSON logs with redaction (passwords, tokens, cookies, CSRF, DB URLs, Postgres row dumps); access log without query strings; request-id propagation web → api
+- Cache: `/auth/*` and `/account/*` now `private, no-store`; session cookie lifetime follows `SESSION_ABSOLUTE_TTL_HOURS`. Found in testing: the web CSRF bootstrap never read its response body, which left the `no-store` request open — fixed in `web/src/api/client.ts`
+- Storage: `ImageStorage` interface + `LocalDiskStorage` (single-server only; no shared provider implemented)
+- Web server: gzip, no `.map` served (and `sourcemap: false`), headers on every response, client `X-Forwarded-For` discarded unless `TRUST_UPSTREAM_PROXY=1`, graceful stop
+- Deploy: compose split into local/demo (`docker-compose.yml`) and production template (`docker-compose.prod.yml` + `.env.production.example`); API not published; `exec` in CMD for signals; `VITE_SITE_URL` build arg; GitHub Actions CI (`.github/workflows/ci.yml`, verification only); `docs/PRODUCTION_RUNBOOK.md`
+- Verified: API 256/256 (incl. 13 launch-config + 7 HTTP-hardening tests), web Vitest 112/112, Playwright 99/99; typecheck, lint, build clean; manual: production boot refused with unsafe env (exit 1, 6 problems listed), DB-unreachable startup exits 1 after retries. Docker runtime not executed in this environment
 
-## Remaining issues / notes (not launch-ready until the first five are resolved)
-- Docker compose stack NOT RUN (Docker unavailable in this environment); Dockerfiles and compose are written but unverified
-- No real product photography; seed placeholders are clearly labelled "Photography coming soon"
-- Policy/contact pages are built but **empty until the business publishes its own text** (admin → Pages); legal wording must come from the business, not the system
-- `npm audit`: 3 high (deepmerge-ts via `prisma` CLI dev tooling, pinned by @prisma/config 6.19.3 — fixed only in a Prisma major) and 2 moderate (vitest/@vitest/mocker — fixed only in vitest 5, breaking). Both dev-only; runtime deps clean apart from `prisma` being in the api devDependencies tree
+## Current next phase
+**Real-world launch actions** (no further code phase required to launch): choose hosting + domain + TLS, create production secrets and a password-protected database with backups, run the Docker stack once in staging, publish the five policy/contact pages, set final shipping amounts, upload real product photography, decide unpaid-order stock release, human screen-reader pass
+
+## Remaining issues / notes
+- Docker runtime not executed in this environment (Dockerfiles + compose statically reviewed only)
+- Policy/contact text, contact details, product photography, final shipping amounts: business inputs, not supplied by the system
 - No manual screen-reader pass (automated axe + keyboard e2e only)
+- `npm audit`: 3 high (deepmerge-ts ← @prisma/config ← `prisma` 6.19.3; `prisma` is a peer of `@prisma/client`, so it also appears under `--omit=dev`; used by the CLI config loader, not request handling; fix = Prisma 7 major) and 2 moderate (vitest/@vitest/mocker, dev-only; fix = vitest 5 major). Deferred: major upgrades with migration risk
+- Single API instance: in-process rate limiters, local-disk images
 - Body content is client-rendered: non-JS crawlers get injected meta + `<noscript>` summary only
-- Rate limiters are in-process (single API instance); uploads on local disk/volume (single server only)
-- Shipping ₹99 / ₹2,999 still placeholders (editable in admin Settings); no automatic release of stock held by unpaid orders; refunds offline
-- Phase 11 work is not yet committed
-- Local dev: Postgres must be started detached (`Start-Process pg_ctl …`); `api/.env` sets `CATALOG_RATE_LIMIT_MAX=5000` for the e2e suite; Playwright runs one file at a time (shared dev DB)
+- Unpaid-order stock is held until an admin cancels (automatic expiry needs a business decision); refunds offline
+- Local dev: Postgres must be started detached (`Start-Process pg_ctl …`); `api/.env` sets `CATALOG_RATE_LIMIT_MAX=5000` for the e2e suite (`npm run test:db` pins 300); Playwright runs one file at a time (shared dev DB)
 - Address form offers 8 countries (API accepts any ISO alpha-2); guest-merge keys off the pre-rotation cookie
+- Phase 12 changes are uncommitted (left for review)

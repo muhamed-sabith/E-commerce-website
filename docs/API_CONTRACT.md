@@ -172,7 +172,7 @@ Rules:
 
 | code | HTTP | Meaning |
 |---|---|---|
-| `validation_failed` | 400 | schema/validation errors, field-level details |
+| `validation_failed` | 400 | schema/validation errors, field-level details `[{path, message, code}]` (input values are never echoed); also malformed JSON |
 | `invalid_credentials` | 401 | login failure (generic, no enumeration) |
 | `authentication_required` | 401 | no/invalid session on a protected endpoint — guests at checkout, expired sessions |
 | `access_denied` | 403 | authenticated but wrong role / ownership miss |
@@ -188,6 +188,9 @@ Rules:
 | `category_in_use` / `last_image` / `image_required` | 409 | admin deletion and publishing guards |
 | `unsupported_image` / `file_too_large` / `image_too_small` | 415 / 413 / 422 | image upload refused |
 | `rate_limited` | 429 | back off; `Retry-After` header |
+| `payload_too_large` | 413 | JSON body over 100 kB (uploads have their own `file_too_large`) |
+| `service_unavailable` | 503 | database unreachable; `Retry-After`; body includes `requestId` |
+| `internal_error` | 500 | unexpected failure; generic message in production; body includes `requestId` |
 
 Production responses never carry stack traces or SQL (§12.7).
 

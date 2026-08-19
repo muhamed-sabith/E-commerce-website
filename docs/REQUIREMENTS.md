@@ -221,6 +221,13 @@ All admin surfaces require authenticated **ADMIN** role, enforced on **every req
 * Store name/tagline (HEYRAH, "Wings of Style" — spelling locked), default low-stock threshold, currency formatting (the currency itself is fixed: INR — not a setting), default sorting option, page size. Brand colors/logo are **not** editable from settings (brand rules in AGENTS.md are permanent).
 * **As built (Phase 10):** editable — low-stock threshold, shipping flat rate, free-shipping threshold, default sort, page size. Read-only — name, tagline, currency (shown for reference). Currency formatting is fixed `en-IN` INR; it is not a setting.
 
+### 3.15 Production hardening as built (Phase 12)
+
+* **§12.5 secrets / §12.7 API security:** production refuses to boot with placeholder secrets, http/localhost origins, mismatched site/CORS origins, a password-less database, an unset proxy hop count, or demo payment (unless explicitly acknowledged for a public demo). Steps in `docs/PRODUCTION_RUNBOOK.md`.
+* **§12.9 logging:** structured logs with request ids; credentials, cookies, tokens and database row dumps redacted.
+* **§14 reliability:** explicit startup failure when the database or upload directory is unavailable; graceful shutdown; database outages answer `503`, not stack traces.
+* **Decisions still open (not implemented by assumption):** automatic release of stock held by unpaid orders (today: admin cancellation), shared image storage provider, hosting/TLS/backups.
+
 ### 3.14 Storefront, SEO and hardening as built (Phase 11)
 
 * **Homepage (§2.1) built:** brand opening, New in (newest in-stock), Shop by category (live counts), an under-₹1,000 edit, "How HEYRAH works" (facts the system enforces), provisional brand note. No reviews/ratings/customer counts/delivery promises (none exist).
